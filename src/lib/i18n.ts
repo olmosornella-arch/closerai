@@ -1,41 +1,74 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// i18n — Detección de idioma + hook
-// Auto-detecta según el browser. El usuario puede cambiarlo en Settings.
-// ─────────────────────────────────────────────────────────────────────────────
+// src/lib/i18n.ts
+// Traducciones ES/EN + tipos para el sistema de internacionalizacion
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { COPY, Lang } from "./plans";
+export type Lang = "es" | "en";
 
-const LangContext = createContext<{
-  lang: Lang;
-  setLang: (l: Lang) => void;
-  t: typeof COPY["es"];
-} | null>(null);
-
-export function LangProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>(() => {
-    const saved = localStorage.getItem("closer_lang") as Lang;
-    if (saved) return saved;
-    const browser = navigator.language.toLowerCase();
-    return browser.startsWith("es") ? "es" : "en";
-  });
-
-  const setLang = (l: Lang) => {
-    setLangState(l);
-    localStorage.setItem("closer_lang", l);
-  };
-
-  const t = COPY[lang];
-
-  return (
-    <LangContext.Provider value={{ lang, setLang, t }}>
-      {children}
-    </LangContext.Provider>
-  );
-}
-
-export const useLang = () => {
-  const ctx = useContext(LangContext);
-  if (!ctx) throw new Error("useLang debe usarse dentro de LangProvider");
-  return ctx;
+const es = {
+  saveAndContinue: "Guardar y continuar",
+  saving:          "Guardando...",
+  test:            "Probar conexion",
+  testing:         "Probando...",
+  testSuccess:     "Conexion exitosa",
+  testFail:        "Error de conexion",
+  skip:            "Saltear por ahora",
+  login:           "Iniciar sesion",
+  signup:          "Crear cuenta",
+  logout:          "Cerrar sesion",
+  email:           "Email",
+  password:        "Contrasena",
+  save:            "Guardar",
+  cancel:          "Cancelar",
+  delete:          "Eliminar",
+  edit:            "Editar",
+  close:           "Cerrar",
+  loading:         "Cargando...",
+  error:           "Error",
+  success:         "Exito",
+  newLead:         "Nuevo lead",
+  pipeline:        "Pipeline",
+  inbox:           "Inbox",
+  dashboard:       "Dashboard",
+  settings:        "Ajustes",
+  upgrade:         "Mejorar plan",
+  currentPlan:     "Plan actual",
+  monthly:         "Mensual",
+  annual:          "Anual",
 };
+
+const en: typeof es = {
+  saveAndContinue: "Save and continue",
+  saving:          "Saving...",
+  test:            "Test connection",
+  testing:         "Testing...",
+  testSuccess:     "Connection successful",
+  testFail:        "Connection error",
+  skip:            "Skip for now",
+  login:           "Sign in",
+  signup:          "Create account",
+  logout:          "Sign out",
+  email:           "Email",
+  password:        "Password",
+  save:            "Save",
+  cancel:          "Cancel",
+  delete:          "Delete",
+  edit:            "Edit",
+  close:           "Close",
+  loading:         "Loading...",
+  error:           "Error",
+  success:         "Success",
+  newLead:         "New lead",
+  pipeline:        "Pipeline",
+  inbox:           "Inbox",
+  dashboard:       "Dashboard",
+  settings:        "Settings",
+  upgrade:         "Upgrade plan",
+  currentPlan:     "Current plan",
+  monthly:         "Monthly",
+  annual:          "Annual",
+};
+
+export const translations: Record<Lang, typeof es> = { es, en };
+
+export const COPY = translations;
+
+export type Translations = typeof es;
