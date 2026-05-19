@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Base ─────────────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
+
+body {
+  background: #07090F;
+  color: #e4e4e7;
+  font-family: 'DM Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.15); }
+
+/* ─── Custom scrollbar class ───────────────────────────────────────────────── */
+.custom-scrollbar::-webkit-scrollbar { width: 3px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.07); border-radius: 10px; }
+
+/* ─── Select options ─────────────────────────────────────────────────────────── */
+select option { background: #0D1424; color: #e4e4e7; }
+
+/* ─── Focus ring ────────────────────────────────────────────────────────────── */
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: rgba(201,168,76,.4) !important;
+}
+
+/* ─── Animations ────────────────────────────────────────────────────────────── */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pulse-gold { 0%, 100% { box-shadow: 0 0 0 0 rgba(201,168,76,.3); } 50% { box-shadow: 0 0 0 8px rgba(201,168,76,0); } }
+
+.animate-fade-in { animation: fadeIn 0.2s ease-out; }
+.animate-slide-up { animation: slideUp 0.25s ease-out; }
+.animate-pulse-gold { animation: pulse-gold 2s infinite; }
+
+/* ─── Stat card hover ──────────────────────────────────────────────────────── */
+.stat-card { transition: border-color 0.2s, box-shadow 0.2s; }
+.stat-card:hover { border-color: rgba(201,168,76,.2) !important; box-shadow: 0 0 20px rgba(201,168,76,.04); }
+
+/* ─── Lead card hover ──────────────────────────────────────────────────────── */
+.lead-card-hover { transition: border-color 0.2s, transform 0.2s; }
+.lead-card-hover:hover { border-color: rgba(201,168,76,.15) !important; transform: translateY(-1px); }
