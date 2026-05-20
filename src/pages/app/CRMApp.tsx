@@ -4461,8 +4461,6 @@ const NAV = [
   )}
   </div>
   );
-}
-
 function AppLayout() {
   const { profile, leads, inbox } = useContext(GlobalContext);
   const [activeTab, setActiveTab] = useState("dashboard");
