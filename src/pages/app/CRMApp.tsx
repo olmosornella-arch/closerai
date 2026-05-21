@@ -2,7 +2,7 @@ import { useState, useEffect, useContext, createContext, useCallback, useMemo } 
 
 const FONT_LINK = document.createElement("link");
 FONT_LINK.rel = "stylesheet";
-FONT_LINK.href = "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap";
+FONT_LINK.href = "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&family=Sora:wght@300;400;600;700;800&display=swap";
 document.head.appendChild(FONT_LINK);
 
 const STAGES = ["Nuevo", "Contactado", "Respondio", "Call", "Cerrado"];
@@ -524,9 +524,9 @@ const T = {
   emerald: "#10b981",
   emeraldMuted: "rgba(16,185,129,.12)",
 };
-const FM = "'DM Mono',monospace";
-const FS = "'DM Sans',sans-serif";
-const FP = "'Playfair Display',serif";
+const FM = "'JetBrains Mono',monospace";
+const FS = "'Inter',sans-serif";
+const FP = "'Sora',sans-serif";
 
 function Toast({ message, type }) {
   const c = {
@@ -1081,10 +1081,14 @@ function Dashboard({ setActiveTab, onStartSession }) {
   }, [leads]);
 
   const StatCard = ({ label, value, sub, color = "#e4e4e7" }) => (
-  <div className="stat-card rounded-xl p-5 border" style={{background:"linear-gradient(145deg,rgba(255,255,255,.025) 0%,rgba(255,255,255,.01) 100%)",borderColor:"rgba(255,255,255,.07)"}}>
-  <p className="text-[9px] text-zinc-600 uppercase tracking-[0.18em] mb-2" style={{fontFamily:FM}}>{label}</p>
-  <p className="text-3xl font-black" style={{color,fontFamily:FP,letterSpacing:"-0.02em"}}>{value}</p>
-  {sub && <p className="text-[10px] text-zinc-700 mt-1 tracking-wide">{sub}</p>}
+  <div className="stat-card rounded-2xl p-5 border relative overflow-hidden group cursor-default"
+    style={{background:"linear-gradient(145deg,rgba(255,255,255,.05) 0%,rgba(255,255,255,.02) 100%)",borderColor:"rgba(255,255,255,.08)",transition:"border-color .2s,box-shadow .2s"}}
+    onMouseEnter={e=>{e.currentTarget.style.borderColor="rgba(201,168,76,.2)";e.currentTarget.style.boxShadow="0 0 30px rgba(201,168,76,.05)";}}
+    onMouseLeave={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,.08)";e.currentTarget.style.boxShadow="none";}}>
+  <div className="absolute top-0 right-0 w-16 h-16 rounded-full opacity-10 -translate-y-8 translate-x-8" style={{background:color,filter:"blur(20px)"}} />
+  <p className="text-[9px] font-semibold text-zinc-500 uppercase tracking-[0.16em] mb-3" style={{fontFamily:FM}}>{label}</p>
+  <p className="text-3xl font-bold leading-none" style={{color,fontFamily:FP,letterSpacing:"-0.03em"}}>{value}</p>
+  {sub && <p className="text-[10px] text-zinc-600 mt-2">{sub}</p>}
   </div>
   );
 
@@ -4357,18 +4361,28 @@ function AppLayout() {
   const closerReady = leads.filter(l => l.stage === "Call" && l.handoff).length;
 
   return (
-  <div className="min-h-screen flex" style={{background:"#07090F",fontFamily:FS,color:"#e4e4e7"}}>
+  <div className="min-h-screen flex" style={{background:"#060810",fontFamily:FS,color:"#e4e4e7"}}>
 
   {/* ── SIDEBAR ── */}
-  <aside className="w-56 flex flex-col flex-shrink-0 relative" style={{background:"linear-gradient(180deg,#0A0F1E 0%,#070A15 100%)",borderRight:"1px solid rgba(255,255,255,.05)"}}>
+  <aside className="w-[220px] flex flex-col flex-shrink-0 relative" style={{background:"#080C16",borderRight:"1px solid rgba(255,255,255,.07)"}}>
+
+  {/* Subtle top glow */}
+  <div className="absolute top-0 left-0 right-0 h-32 pointer-events-none" style={{background:"linear-gradient(180deg,rgba(201,168,76,.04) 0%,transparent 100%)"}} />
 
   {/* Logo */}
-  <div className="px-5 pt-5 pb-4" style={{borderBottom:"1px solid rgba(255,255,255,.04)"}}>
-  <div className="flex items-baseline gap-1">
-  <span className="text-base font-black tracking-[0.15em] text-white uppercase" style={{fontFamily:FP,letterSpacing:"0.18em"}}>Closer</span>
-  <span className="text-base font-black" style={{color:T.gold,fontFamily:FP}}>AI</span>
+  <div className="px-5 pt-6 pb-5 relative" style={{borderBottom:"1px solid rgba(255,255,255,.06)"}}>
+  <div className="flex items-center gap-2">
+  <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{background:"linear-gradient(135deg,#C9A84C,#E8D87A)",boxShadow:"0 0 16px rgba(201,168,76,.3)"}}>
+  <span className="text-[10px] font-black text-black">C</span>
   </div>
-  <p className="text-[9px] tracking-[0.2em] uppercase mt-0.5" style={{color:"rgba(201,168,76,.35)",fontFamily:FM}}>v9</p>
+  <div>
+  <div className="flex items-baseline gap-0.5">
+  <span className="text-sm font-bold text-white tracking-tight" style={{fontFamily:FP}}>Closer</span>
+  <span className="text-sm font-bold" style={{color:T.gold,fontFamily:FP}}>AI</span>
+  </div>
+  <p className="text-[8px] tracking-[0.2em] uppercase" style={{color:"rgba(201,168,76,.4)",fontFamily:FM}}>v9 · B2B Engine</p>
+  </div>
+  </div>
   </div>
 
   {/* Workspace Switcher */}
@@ -4380,16 +4394,16 @@ function AppLayout() {
   const isActive = activeTab === id;
   return (
   <button key={id} onClick={() => setActiveTab(id)}
-  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-all duration-200 relative group"
+  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs transition-all duration-150 relative group"
   style={{
-  background: isActive ? "rgba(201,168,76,.08)" : "transparent",
-  color: isActive ? T.gold : "rgba(161,161,170,.7)",
-  border: `1px solid ${isActive ? "rgba(201,168,76,.2)" : "transparent"}`,
+  background: isActive ? "rgba(201,168,76,.1)" : "transparent",
+  color: isActive ? T.gold : "rgba(161,161,170,.65)",
+  border: `1px solid ${isActive ? "rgba(201,168,76,.22)" : "transparent"}`,
   fontFamily:FS,
   fontWeight: isActive ? 600 : 400,
-  letterSpacing: "0.02em",
   }}>
-  <span className="transition-colors" style={{color:isActive ? T.gold :"rgba(113,113,122,.8)"}}>
+  {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-full" style={{background:T.gold,boxShadow:`0 0 8px ${T.gold}`}} />}
+  <span className="transition-colors ml-1" style={{color:isActive ? T.gold :"rgba(113,113,122,.7)"}}>
   <NavIcon id={id} />
   </span>
   <span className="flex-1 text-left">{label}</span>
@@ -4431,19 +4445,19 @@ function AppLayout() {
 
   {/* Profile */}
   <button onClick={() => setShowSettings(true)}
-  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-all mt-1"
-  style={{background:"rgba(255,255,255,.02)",border:"1px solid rgba(255,255,255,.05)"}}
-  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(201,168,76,.2)"; }}
-  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,.05)"; }}>
-  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
-  style={{background:"linear-gradient(135deg,#C9A84C,#E8C96A)",color:"#07090F"}}>
+  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all mt-1"
+  style={{background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.07)"}}
+  onMouseEnter={e=>{e.currentTarget.style.borderColor="rgba(201,168,76,.25)";e.currentTarget.style.background="rgba(201,168,76,.06)";}}
+  onMouseLeave={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,.07)";e.currentTarget.style.background="rgba(255,255,255,.04)";}}>
+  <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-bold flex-shrink-0"
+    style={{background:"linear-gradient(135deg,#C9A84C,#E8D87A)",color:"#07090F",boxShadow:"0 0 10px rgba(201,168,76,.25)"}}>
   {profile.name?.[0]?.toUpperCase()}
   </div>
   <div className="text-left min-w-0 flex-1">
-  <div className="text-[11px] font-medium text-zinc-300 truncate">{profile.name}</div>
-  <div className="text-[9px] text-zinc-600 truncate tracking-wide">{profile.role}</div>
+  <div className="text-[11px] font-semibold text-zinc-200 truncate">{profile.name}</div>
+  <div className="text-[9px] text-zinc-500 truncate">{profile.role}</div>
   </div>
-  <svg width="11" height="11" viewBox="0 0 15 15" fill="none" style={{color:"rgba(113,113,122,.5)",flexShrink:0}}>
+  <svg width="11" height="11" viewBox="0 0 15 15" fill="none" style={{color:"rgba(113,113,122,.4)",flexShrink:0}}>
   <path d="M7.5 1a6.5 6.5 0 100 13A6.5 6.5 0 007.5 1zM6 7.5a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0z" stroke="currentColor" strokeWidth="1.2"/>
   </svg>
   </button>
