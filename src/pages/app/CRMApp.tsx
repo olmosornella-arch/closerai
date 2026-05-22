@@ -1,5 +1,5 @@
-// CloserAI · CRMApp v4 · Full Stack Edition
-// Supabase Auth + Roles + API Keys + Métricas + Email + Cadencias + Knowledge
+// CloserAI - CRMApp v4 - Full Stack Edition
+// Supabase Auth + Roles + API Keys + Metricas + Email + Cadencias + Knowledge + Prospector v5 (14 fuentes)
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient, SupabaseClient, User } from "@supabase/supabase-js";
 
@@ -1040,33 +1040,281 @@ function QualifyGate({leads,onScoreUpdate}:{leads:Lead[];onScoreUpdate:(id:strin
   );
 }
 
-function Prospector({onAddLead}:{onAddLead:(l:Lead)=>void}) {
-  const [url,setUrl]=useState("");const [loading,setLoading]=useState(false);const [results,setResults]=useState<Lead[]>([]);
-  const toast=useToast();
-  async function extract(){if(!url)return;setLoading(true);await new Promise(r=>setTimeout(r,1200));
-    const demo:Lead[]=[{id:uid(),workspace_id:"",name:"Valentina Mier",role:"CEO",company:"StartupBA",score:8,temp:"Warm",stage:"Nuevo",source:"apify",created_at:new Date().toISOString()},{id:uid(),workspace_id:"",name:"Marcos Reyes",role:"CMO",company:"Scale Co",score:7,temp:"Warm",stage:"Nuevo",source:"apify",created_at:new Date().toISOString()},{id:uid(),workspace_id:"",name:"Andrea Font",role:"Founder",company:"EduTech",score:9,temp:"Hot",stage:"Nuevo",source:"apify",created_at:new Date().toISOString()}];
-    setResults(demo);setLoading(false);toast(`${demo.length} leads extraídos`,"ok");
+// PROSPECTOR v5 - 14 fuentes Apify (LinkedIn, Instagram, Facebook, Maps, Multi)
+
+interface SourceField {
+  key: string; label: string;
+  type: "text"|"number"|"select"|"textarea";
+  placeholder?: string; options?: string[];
+  required?: boolean; hint?: string;
+}
+interface ApifySource {
+  id: string; label: string; icon: string;
+  platform: "linkedin"|"instagram"|"facebook"|"maps"|"multi";
+  mode: string; actor: string; actorLabel: string;
+  desc: string; tip: string; tier: "free"|"freemium"|"paid";
+  gives: { phone: boolean; email: boolean; linkedin: boolean; };
+  fields: SourceField[];
+}
+
+const PROSPECTOR_SOURCES: ApifySource[] = [
+  {id:"li_post",label:"Post LinkedIn",icon:"\u{1F4AC}",platform:"linkedin",mode:"Comentadores de un post",actor:"post-scraper/scrape-linkedin-posts",actorLabel:"post-scraper/scrape-linkedin-posts",desc:"Extrae todos los usuarios que comentaron o reaccionaron a un post publico. Leads warm que ya mostraron interes en el tema.",tip:"Buscar posts de referentes del nicho con 50+ comentarios para mejores resultados.",tier:"freemium",gives:{phone:false,email:true,linkedin:true},fields:[{key:"url",label:"URL del post",type:"text",placeholder:"https://linkedin.com/posts/...",required:true},{key:"limit",label:"Maximo resultados",type:"number",placeholder:"50",hint:"Recomendado: 30-100"}]},
+  {id:"li_search",label:"Busqueda LinkedIn",icon:"\u{1F50D}",platform:"linkedin",mode:"Por keyword + rol + ciudad",actor:"get-leads/linkedin-scraper",actorLabel:"get-leads/linkedin-scraper",desc:"Busca perfiles por rol, industria, keyword y ubicacion. Devuelve nombre, empresa, URL de perfil y email cuando esta visible.",tip:"Usar rol en ingles para mejores resultados. Ej: 'Founder SaaS Buenos Aires'.",tier:"freemium",gives:{phone:false,email:true,linkedin:true},fields:[{key:"keyword",label:"Keyword o rol",type:"text",placeholder:"CEO startup",required:true},{key:"location",label:"Ubicacion",type:"text",placeholder:"Argentina"},{key:"industry",label:"Industria (opcional)",type:"text",placeholder:"Software, Coaching, Marketing..."},{key:"limit",label:"Maximo perfiles",type:"number",placeholder:"30"}]},
+  {id:"li_profile",label:"Perfil LinkedIn",icon:"\u{1F464}",platform:"linkedin",mode:"Enriquecer perfil individual",actor:"dev_fusion/linkedin-profile-scraper",actorLabel:"dev_fusion/linkedin-profile-scraper",desc:"Extrae todos los datos de un perfil: experiencia, educacion, skills, email y telefono si estan visibles. Ideal antes de contactar.",tip:"Pegar la URL completa con /in/username. Funciona sin cookies.",tier:"paid",gives:{phone:true,email:true,linkedin:true},fields:[{key:"profileUrl",label:"URL del perfil",type:"text",placeholder:"https://linkedin.com/in/username",required:true}]},
+  {id:"li_company",label:"Empresa LinkedIn",icon:"\u{1F3E2}",platform:"linkedin",mode:"Empleados de una empresa",actor:"apimaestro/linkedin-company-employees",actorLabel:"apimaestro/linkedin-company-employees",desc:"Extrae todos los empleados de una empresa con filtros por cargo y seniority. No requiere cookies ni cuenta LinkedIn.",tip:"Ideal para encontrar el decisor exacto dentro de una empresa que ya identificaste como target.",tier:"paid",gives:{phone:false,email:true,linkedin:true},fields:[{key:"companyUrl",label:"URL de empresa",type:"text",placeholder:"https://linkedin.com/company/nombre",required:true},{key:"role",label:"Filtrar por cargo (opcional)",type:"text",placeholder:"CEO, Marketing, Growth..."},{key:"limit",label:"Maximo empleados",type:"number",placeholder:"50"}]},
+  {id:"ig_hashtag",label:"Hashtag Instagram",icon:"#\uFE0F\u20E3",platform:"instagram",mode:"Usuarios por hashtag de nicho",actor:"apify/instagram-hashtag-scraper",actorLabel:"apify/instagram-hashtag-scraper",desc:"Extrae usuarios que postean con un hashtag. Perfecto para encontrar emprendedores, coaches y duenos de negocio por nicho e interes.",tip:"Usar hashtags de nicho especifico. Ej: #coachingempresarial en vez de #coach.",tier:"free",gives:{phone:false,email:false,linkedin:false},fields:[{key:"hashtag",label:"Hashtag (sin #)",type:"text",placeholder:"emprendedorlatinoamerica",required:true},{key:"limit",label:"Maximo usuarios",type:"number",placeholder:"60",hint:"Free tier: hasta 60/run"}]},
+  {id:"ig_profile",label:"Perfil Instagram",icon:"\u{1F4F8}",platform:"instagram",mode:"Datos de perfil publico",actor:"apify/instagram-api-scraper",actorLabel:"apify/instagram-api-scraper",desc:"Extrae bio, seguidores, posts recientes, hashtags usados y datos de contacto de un perfil publico. Para calificar leads de IG.",tip:"Combinar con el hashtag scraper: primero lista, despues enriqueces perfil por perfil.",tier:"free",gives:{phone:true,email:true,linkedin:false},fields:[{key:"username",label:"Username (sin @)",type:"text",placeholder:"username",required:true}]},
+  {id:"ig_phone",label:"Telefonos Instagram",icon:"\u{1F4DE}",platform:"instagram",mode:"Extrae telefonos de perfiles IG",actor:"api-empire/instagram-phone-number-scraper",actorLabel:"api-empire/instagram-phone-number-scraper",desc:"Extrae telefonos publicos de perfiles de Instagram. Ideal para armar listas de contacto de emprendedores y negocios que ponen su numero en la bio.",tip:"Funcionara mejor con perfiles de negocios que de personas - las bios de negocios suelen tener telefono.",tier:"freemium",gives:{phone:true,email:false,linkedin:false},fields:[{key:"usernames",label:"Usernames (uno por linea)",type:"textarea",placeholder:"username1\nusername2\nusername3",required:true,hint:"Hasta 100 perfiles por run"}]},
+  {id:"fb_pages",label:"Paginas Facebook",icon:"\u{1F4D8}",platform:"facebook",mode:"Paginas de negocios + tel + email",actor:"making-data-meaningful/facebook-pages-scraper",actorLabel:"making-data-meaningful/facebook-pages-scraper",desc:"Extrae paginas de negocios con nombre, categoria, telefono, email, sitio web, direccion, seguidores y rating. El mas completo para B2B local.",tip:"Buscar por categoria + ciudad. Ej: 'coaches de negocios Mendoza'.",tier:"freemium",gives:{phone:true,email:true,linkedin:false},fields:[{key:"query",label:"Busqueda",type:"text",placeholder:"coaches de negocios Mendoza",required:true},{key:"limit",label:"Maximo paginas",type:"number",placeholder:"40"},{key:"country",label:"Pais",type:"select",options:["Argentina","Mexico","Colombia","Chile","Espana","Uruguay","Peru","Brasil"]}]},
+  {id:"fb_post",label:"Post Facebook",icon:"\u{1F4AC}",platform:"facebook",mode:"Comentadores de un post FB",actor:"apify/facebook-posts-scraper",actorLabel:"apify/facebook-posts-scraper",desc:"Extrae usuarios que comentaron en un post publico de Facebook. Util para grupos y paginas de nicho con alta interaccion.",tip:"Los grupos publicos de emprendedores son la mina de oro - posts con 100+ comentarios.",tier:"freemium",gives:{phone:false,email:false,linkedin:false},fields:[{key:"url",label:"URL del post",type:"text",placeholder:"https://facebook.com/post/...",required:true},{key:"limit",label:"Maximo comentarios",type:"number",placeholder:"50"}]},
+  {id:"fb_phone",label:"Telefonos Facebook",icon:"\u{1F4F1}",platform:"facebook",mode:"Extrae telefonos de paginas FB",actor:"scraper-mind/facebook-phone-number-scraper",actorLabel:"scraper-mind/facebook-phone-number-scraper",desc:"Extrae telefonos publicos de paginas de Facebook por keyword y pais. Formato E.164, deduplicado y listo para CRM o campanas de llamadas.",tip:"Combinar con el Pages scraper - primero encontras las paginas, despues extraes los telefonos.",tier:"freemium",gives:{phone:true,email:false,linkedin:false},fields:[{key:"keyword",label:"Keyword",type:"text",placeholder:"gym Mendoza",required:true},{key:"country",label:"Pais",type:"select",options:["Argentina (+54)","Mexico (+52)","Colombia (+57)","Chile (+56)","Espana (+34)","Uruguay (+598)"],required:true},{key:"limit",label:"Maximo telefonos",type:"number",placeholder:"50"}]},
+  {id:"fb_user",label:"Usuarios Facebook",icon:"\u{1F465}",platform:"facebook",mode:"Busqueda de usuarios FB",actor:"lexis-solutions/facebook-user-search-scraper",actorLabel:"lexis-solutions/facebook-user-search-scraper",desc:"Busca usuarios de Facebook por nombre o keyword. Util para enriquecer leads que ya tenes y matchear perfiles entre plataformas.",tip:"Mas efectivo para perfiles publicos con nombre completo. Usarlo para enriquecer, no para prospectar desde cero.",tier:"freemium",gives:{phone:false,email:false,linkedin:false},fields:[{key:"query",label:"Nombre o keyword",type:"text",placeholder:"Juan Perez emprendedor",required:true},{key:"limit",label:"Maximo resultados",type:"number",placeholder:"20"}]},
+  {id:"maps",label:"Google Maps",icon:"\u{1F4CD}",platform:"maps",mode:"Locales + tel + email + rating",actor:"dev-sinior/google-maps-scraper-premium",actorLabel:"dev-sinior/google-maps-scraper-premium",desc:"Extrae negocios locales con nombre, telefono, email, rating, direccion, horario y redes sociales. El mejor para prospectar negocios fisicos.",tip:"Cuanto mas especifico el nicho y zona, mejores leads. Ej: 'psicologos Palermo CABA' en vez de 'psicologos Buenos Aires'.",tier:"freemium",gives:{phone:true,email:true,linkedin:false},fields:[{key:"query",label:"Busqueda",type:"text",placeholder:"estudios contables Mendoza",required:true},{key:"maxResults",label:"Maximo resultados",type:"number",placeholder:"50",hint:"Max 120 por area. Usar gridSubdivisions para mas."},{key:"language",label:"Idioma resultados",type:"select",options:["es","en","pt"]},{key:"country",label:"Pais",type:"select",options:["Argentina","Mexico","Colombia","Chile","Espana","Uruguay","Peru"]}]},
+  {id:"contact_scraper",label:"Web Contact Scraper",icon:"\u{1F310}",platform:"multi",mode:"Email + tel + redes de cualquier web",actor:"vdrmota/contact-info-scraper",actorLabel:"vdrmota/contact-info-scraper",desc:"Crawlea cualquier sitio web y extrae emails, telefonos y perfiles de redes sociales. Gratis. Ideal si tenes una lista de sitios web de leads.",tip:"Pegar varios dominios a la vez. Ej: el sitio de una empresa que ya te interesa para sacar el contacto directo.",tier:"free",gives:{phone:true,email:true,linkedin:true},fields:[{key:"urls",label:"URLs (una por linea)",type:"textarea",placeholder:"https://empresa1.com\nhttps://empresa2.com\nhttps://empresa3.com",required:true,hint:"Hasta 50 URLs por run en plan free"}]},
+  {id:"zoominfo",label:"ZoomInfo Scraper",icon:"\u{1F3AF}",platform:"multi",mode:"Empresas + ejecutivos + emails + tel",actor:"scraped/zoominfo-people-scraper",actorLabel:"scraped/zoominfo-people-scraper",desc:"Alternativa barata a Apollo y Lusha. Extrae emails verificados, telefonos, cargos y datos de empresa desde ZoomInfo. Hasta 500k leads/mes.",tip:"El mas completo para B2B con datos verificados. Combinar con LinkedIn search para maxima cobertura.",tier:"paid",gives:{phone:true,email:true,linkedin:true},fields:[{key:"keyword",label:"Keyword o empresa",type:"text",placeholder:"CEO fintech Argentina",required:true},{key:"industry",label:"Industria",type:"text",placeholder:"SaaS, Fintech, Edtech..."},{key:"limit",label:"Maximo contactos",type:"number",placeholder:"50"}]}
+];
+
+const PROSPECTOR_PLATFORMS = [
+  {id:"all",label:"Todas",icon:"\u25C8",color:"#C9A84C"},
+  {id:"linkedin",label:"LinkedIn",icon:"\u{1F535}",color:"#60a5fa"},
+  {id:"instagram",label:"Instagram",icon:"\u{1F4F8}",color:"#f472b6"},
+  {id:"facebook",label:"Facebook",icon:"\u{1F4D8}",color:"#818cf8"},
+  {id:"maps",label:"Maps",icon:"\u{1F4CD}",color:"#10b981"},
+  {id:"multi",label:"Multi",icon:"\u{1F310}",color:"#fb923c"}
+];
+
+const PROSPECTOR_PC: Record<string,{bg:string;color:string;border:string}> = {
+  linkedin:  {bg:"rgba(96,165,250,0.08)",color:"#60a5fa",border:"rgba(96,165,250,0.2)"},
+  instagram: {bg:"rgba(244,114,182,0.08)",color:"#f472b6",border:"rgba(244,114,182,0.2)"},
+  facebook:  {bg:"rgba(129,140,248,0.08)",color:"#818cf8",border:"rgba(129,140,248,0.2)"},
+  maps:      {bg:"rgba(16,185,129,0.08)",color:"#10b981",border:"rgba(16,185,129,0.2)"},
+  multi:     {bg:"rgba(251,146,60,0.08)",color:"#fb923c",border:"rgba(251,146,60,0.2)"}
+};
+
+const PROSPECTOR_TIER: Record<string,{label:string;bg:string;color:string}> = {
+  free:     {label:"Gratis",  bg:"rgba(16,185,129,0.1)",  color:"#10b981"},
+  freemium: {label:"Freemium",bg:"rgba(201,168,76,0.1)",  color:"#C9A84C"},
+  paid:     {label:"De pago", bg:"rgba(248,113,113,0.1)", color:"#f87171"}
+};
+
+function mockProspectorLeads(src: ApifySource, inp: Record<string,string>, wsId: string): Lead[] {
+  const mk = (name:string,role:string,company:string,score:number,temp:"Hot"|"Warm"|"Frio",extra?:Partial<Lead>):Lead => ({
+    id:uid(),workspace_id:wsId,name,role,company,score,temp:temp as any,
+    stage:"Nuevo",source:src.id,created_at:new Date().toISOString(),...extra
+  });
+  const d: Record<string,Lead[]> = {
+    li_post:[mk("Valentina Mier","CEO","StartupBA",9,"Hot",{linkedin_url:"https://linkedin.com/in/vmier",email:"v.mier@startupba.com"}),mk("Marcos Reyes","CMO","Scale Co",8,"Warm",{linkedin_url:"https://linkedin.com/in/mreyes"}),mk("Andrea Font","Founder","EduTech AR",9,"Hot",{email:"andrea@edutech.com",linkedin_url:"https://linkedin.com/in/afont"}),mk("Lucas Mendez","Growth Lead","SaaS MX",7,"Warm",{linkedin_url:"https://linkedin.com/in/lmendez"}),mk("Romina Saez","Co-founder","FinteAR",8,"Warm",{linkedin_url:"https://linkedin.com/in/rsaez",email:"r.saez@fintear.io"})],
+    li_search:[mk("Carolina Suarez","Founder","InnovaBA",8,"Warm",{linkedin_url:"https://linkedin.com/in/csuarez",email:"c.suarez@innova.com"}),mk("Ramiro Vega","CEO","VegaTech",9,"Hot",{linkedin_url:"https://linkedin.com/in/rvega",phone:"+54 11 4XXX-XXXX"}),mk("Sofia Ruiz","Co-founder","EduGrow",7,"Warm",{linkedin_url:"https://linkedin.com/in/sruiz"}),mk("Tomas Ibarra","Director Comercial","AgenciaGrow",8,"Warm",{linkedin_url:"https://linkedin.com/in/tibarra",email:"tibarra@agenciagrow.com"})],
+    li_profile:[mk("Lead Enriquecido","Founder","TechCo",8,"Warm",{linkedin_url:inp.profileUrl,email:"contacto@techco.com",phone:"+54 11 4XXX-XXXX",notes:"Experiencia: 8 anos en SaaS. Skills: Growth, Product."})],
+    li_company:[mk("Ana Lopez","Head of Marketing","Target Co",8,"Warm",{linkedin_url:"https://linkedin.com/in/alopez",email:"a.lopez@targetco.com"}),mk("Bruno Herrera","CEO","Target Co",9,"Hot",{linkedin_url:"https://linkedin.com/in/bherrera",email:"b.herrera@targetco.com"}),mk("Claudia Mora","CFO","Target Co",7,"Frio",{linkedin_url:"https://linkedin.com/in/cmora"})],
+    ig_hashtag:[mk("@emprendedora.ok","Creadora contenido","Self",7,"Warm"),mk("@coachlauramx","Coach de negocios","Self",8,"Warm"),mk("@startup.latam","Fundadora","StartupLatam",9,"Hot"),mk("@digitalmentor_ar","Mentor digital","Self",6,"Frio"),mk("@negocios.reales","Emprendedor","Self",7,"Warm")],
+    ig_profile:[mk(inp.username||"@usuario","Emprendedor/Influencer","Self",7,"Warm",{email:"contacto@email.com",phone:"+54 9 11 4XXX-XXXX",notes:"Seguidores: 12.4K - Engagement: 4.2% - Nicho: negocios digitales"})],
+    ig_phone:[mk("@negocio_mendoza","Dueno local","Negocio MZA",7,"Warm",{phone:"+54 261 4XX-XXXX"}),mk("@coach.ar","Coach","Self",8,"Warm",{phone:"+54 11 4XXX-XXXX"}),mk("@gymfitpro","Gym","FitPro",7,"Warm",{phone:"+54 351 4XX-XXXX"})],
+    fb_pages:[mk("Estudio Juridico Perez","Abogado","Est. Juridico Perez",7,"Warm",{phone:"+54 261 4XX-XXXX",email:"info@estudioperez.com"}),mk("Psicologa Dra. Garcia","Psicologa","Consultorio Garcia",8,"Warm",{phone:"+54 261 4XX-YYYY",email:"dra.garcia@gmail.com"}),mk("Agencia Digital Sur","Director","Agencia Digital Sur",9,"Hot",{phone:"+54 261 4XX-ZZZZ",email:"hola@agenciadigitalsur.com"}),mk("Gym PowerFit","Dueno","PowerFit Gym",7,"Warm",{phone:"+54 261 4XX-AAAA",email:"contacto@powerfit.com"}),mk("Consultora RH Mendoza","Directora","ConsultoraRH",8,"Warm",{phone:"+54 261 4XX-BBBB",email:"info@consultorarhMZA.com"})],
+    fb_post:[mk("Juan Perez","Emprendedor","JuanP Ventures",7,"Warm"),mk("Maria Gonzalez","Coach","Self",8,"Warm"),mk("Carlos Vidal","CEO","StartupMZA",9,"Hot",{email:"carlos@startupmza.com"})],
+    fb_phone:[mk("Gym XFit Mendoza","Dueno","XFit",7,"Warm",{phone:"+54 261 4XX-1111"}),mk("Clinica Dental Norte","Odontologo","Clinica Norte",7,"Warm",{phone:"+54 261 4XX-2222"}),mk("Resto La Pampa","Dueno","La Pampa",6,"Frio",{phone:"+54 261 4XX-3333"}),mk("Agencia Turismo Sol","Director","TurismoSol",8,"Warm",{phone:"+54 261 4XX-4444",email:"sol@turismosol.com"})],
+    fb_user:[mk("Juan Carlos Rios","Emprendedor","Self",6,"Frio"),mk("Laura Medina","Founder","LauraM Consulting",7,"Warm",{email:"laura@lauram.com"})],
+    maps:[mk("Estudio Contable Mendoza","Contador","Est. Contable MZA",7,"Warm",{phone:"+54 261 4XX-XXXX",email:"info@contablemza.com",notes:"Rating: 4.8 estrellas - 47 resenas"}),mk("Psicologa Marta Lopez","Psicologa","Consultorio Lopez",8,"Warm",{phone:"+54 261 4XX-YYYY",notes:"Rating: 5.0 estrellas - 23 resenas"}),mk("Gym FitLife","Dueno de gimnasio","FitLife Gym",7,"Warm",{phone:"+54 261 4XX-ZZZZ",email:"contacto@fitlife.com",notes:"Rating: 4.5 estrellas - 89 resenas"}),mk("Marketing Digital AR","Director","MktAR",9,"Hot",{email:"hola@mktar.com",phone:"+54 261 4XX-AAAA",notes:"Rating: 4.9 estrellas - 31 resenas"}),mk("Centro Medico Norte","Director","CMN",7,"Warm",{phone:"+54 261 4XX-BBBB",email:"turno@cmn.com",notes:"Rating: 4.3 estrellas - 112 resenas"})],
+    contact_scraper:[mk("Empresa 1","CEO","Tech SA",8,"Warm",{email:"ceo@empresa1.com",phone:"+54 11 4XXX-1111",linkedin_url:"https://linkedin.com/company/empresa1"}),mk("Empresa 2","Fundador","Agency Co",7,"Warm",{email:"hola@empresa2.com",phone:"+54 11 4XXX-2222",linkedin_url:"https://linkedin.com/company/empresa2"})],
+    zoominfo:[mk("Sergio Almeida","VP Sales","FinCorp SA",9,"Hot",{email:"s.almeida@fincorp.com",phone:"+54 11 4XXX-XXXX",linkedin_url:"https://linkedin.com/in/salmeida",notes:"Empresa: 500+ empleados - Revenue: $10M+"}),mk("Patricia Nunez","CMO","GrowthCo",8,"Warm",{email:"p.nunez@growthco.com",phone:"+54 11 4XXX-YYYY",linkedin_url:"https://linkedin.com/in/pnunez",notes:"Empresa: 50-200 empleados - SaaS B2B"}),mk("Hernan Castro","CEO","StartupHub",9,"Hot",{email:"h.castro@startuphub.com",phone:"+54 11 4XXX-ZZZZ",linkedin_url:"https://linkedin.com/in/hcastro",notes:"Empresa: 10-50 empleados - Seed stage"})]
+  };
+  return d[src.id] || [];
+}
+
+function ContactChip({icon,label,color,border,bg,href}:{icon:string;label:string;color:string;border:string;bg:string;href?:string}) {
+  const style:React.CSSProperties = {
+    display:"inline-flex",alignItems:"center",gap:4,padding:"2px 9px",
+    borderRadius:99,fontSize:10,fontWeight:500,
+    background:bg,color,border:`.5px solid ${border}`,
+    textDecoration:"none",cursor:href?"pointer":"default",
+    whiteSpace:"nowrap",maxWidth:200,overflow:"hidden",textOverflow:"ellipsis"
+  };
+  return href
+    ? <a href={href} target="_blank" rel="noopener noreferrer" style={style}>{icon} {label}</a>
+    : <span style={style}>{icon} {label}</span>;
+}
+
+function Prospector({onAddLead,workspaceId}:{onAddLead:(l:Lead)=>void;workspaceId:string}) {
+  const [platform,setPlatform] = useState("all");
+  const [activeId,setActiveId] = useState("li_post");
+  const [inputs,setInputs] = useState<Record<string,string>>({});
+  const [loading,setLoading] = useState(false);
+  const [results,setResults] = useState<Lead[]>([]);
+  const [added,setAdded] = useState<Set<string>>(new Set());
+  const [viewMode,setViewMode] = useState<"grid"|"list">("list");
+  const toast = useToast();
+  const activeSource = PROSPECTOR_SOURCES.find(s=>s.id===activeId)!;
+  const filtered = platform==="all" ? PROSPECTOR_SOURCES : PROSPECTOR_SOURCES.filter(s=>s.platform===platform);
+  const pc = PROSPECTOR_PC[activeSource.platform];
+  const tier = PROSPECTOR_TIER[activeSource.tier];
+
+  function selectSource(s:ApifySource) { setActiveId(s.id);setInputs({});setResults([]);setAdded(new Set()); }
+  async function extract() {
+    const req = activeSource.fields.filter(f=>f.required);
+    if (req.some(f=>!inputs[f.key]?.trim())) { toast("Completa los campos requeridos","err"); return; }
+    setLoading(true);setResults([]);
+    await new Promise(r=>setTimeout(r,1400));
+    const leads = mockProspectorLeads(activeSource,inputs,workspaceId);
+    setResults(leads);setLoading(false);
+    toast(`${leads.length} leads extraidos - ${activeSource.label}`,"ok");
   }
+  function addOne(lead:Lead) {
+    if (added.has(lead.id)) return;
+    onAddLead(lead);
+    setAdded(p=>new Set([...p,lead.id]));
+    toast(`${lead.name} agregado al CRM`,"ok");
+  }
+  function addAll() {
+    const pending = results.filter(l=>!added.has(l.id));
+    pending.forEach(l=>onAddLead(l));
+    setAdded(new Set(results.map(l=>l.id)));
+    toast(`${pending.length} leads agregados al CRM`,"ok");
+  }
+
   return (
-    <div className="fade-up" style={{padding:"32px 36px",height:"100%",overflowY:"auto"}}>
-      <div style={{marginBottom:28}}><h1 className="display" style={{fontSize:36,fontWeight:300,letterSpacing:"-0.01em"}}>Prospector</h1><p style={{fontSize:13,color:"var(--txt2)",marginTop:4}}>Extraé leads de posts LinkedIn via Apify</p></div>
-      <div style={{maxWidth:640}}>
-        <Field label="URL del post"><div style={{display:"flex",gap:10}}><input className="inp" value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://linkedin.com/posts/..." /><button className="btn btn-primary" onClick={extract} disabled={loading||!url}>{loading?"Extrayendo...":"Extraer"}</button></div></Field>
-        {results.length>0&&<div style={{marginTop:20}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><p style={{fontSize:12,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",fontWeight:600}}>Leads encontrados</p><span className="pill pill-gold">{results.length}</span></div>
-          <div style={{display:"flex",flexDirection:"column",gap:10}}>
-            {results.map(lead=>(
-              <div key={lead.id} className="glass" style={{padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div><p style={{fontWeight:500,fontSize:13}}>{lead.name}</p><p style={{fontSize:12,color:"var(--txt2)",marginTop:2}}>{lead.role} · {lead.company}</p></div>
-                <div style={{display:"flex",gap:8,alignItems:"center"}}><span className="mono" style={{fontSize:18,fontWeight:300,color:scoreColor(lead.score)}}>{lead.score}</span><button className="btn btn-ghost" style={{fontSize:12,padding:"6px 12px"}} onClick={()=>{onAddLead(lead);toast(`${lead.name} agregado`,"ok");}}>+ Agregar</button></div>
-              </div>
+    <div style={{display:"flex",height:"100%",overflow:"hidden",position:"relative"}}>
+      {/* LEFT PANEL */}
+      <div style={{width:230,flexShrink:0,borderRight:".5px solid rgba(255,255,255,0.07)",display:"flex",flexDirection:"column",background:"rgba(6,8,14,.7)",overflowY:"auto"}}>
+        <div style={{padding:"18px 14px 10px"}}>
+          <p style={{fontSize:10,letterSpacing:".08em",textTransform:"uppercase",color:"rgba(138,138,138,.6)",fontWeight:500,marginBottom:10}}>Plataforma</p>
+          <div style={{display:"flex",flexDirection:"column",gap:2}}>
+            {PROSPECTOR_PLATFORMS.map(p=>(
+              <button key={p.id} onClick={()=>setPlatform(p.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",borderRadius:8,border:"none",cursor:"pointer",textAlign:"left",background:platform===p.id?`${p.color}18`:"transparent",color:platform===p.id?p.color:"rgba(138,138,138,.8)",fontSize:12,fontWeight:platform===p.id?500:400,transition:"all .15s",fontFamily:"'DM Sans',sans-serif"}}>
+                <span style={{fontSize:14}}>{p.icon}</span> {p.label}
+                <span style={{marginLeft:"auto",fontSize:10,opacity:.6}}>{p.id==="all"?PROSPECTOR_SOURCES.length:PROSPECTOR_SOURCES.filter(s=>s.platform===p.id).length}</span>
+              </button>
             ))}
           </div>
-        </div>}
+        </div>
+        <div style={{height:.5,background:"rgba(255,255,255,0.06)",margin:"4px 0"}} />
+        <div style={{flex:1,padding:"8px 10px 16px",display:"flex",flexDirection:"column",gap:2}}>
+          {filtered.map(s=>{
+            const spc = PROSPECTOR_PC[s.platform];
+            const isActive = activeId===s.id;
+            const st = PROSPECTOR_TIER[s.tier];
+            return (
+              <div key={s.id} onClick={()=>selectSource(s)} style={{padding:"9px 11px",borderRadius:8,cursor:"pointer",border:`.5px solid ${isActive?spc.border:"transparent"}`,background:isActive?spc.bg:"transparent",transition:"all .15s"}}>
+                <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:2}}>
+                  <span style={{fontSize:14}}>{s.icon}</span>
+                  <span style={{fontSize:12,fontWeight:isActive?500:400,color:isActive?spc.color:"rgba(234,230,223,.7)"}}>{s.label}</span>
+                  <span style={{marginLeft:"auto",fontSize:9,padding:"1px 6px",borderRadius:99,background:st.bg,color:st.color,fontWeight:500}}>{st.label}</span>
+                </div>
+                <p style={{fontSize:10,color:"rgba(138,138,138,.6)",paddingLeft:21,lineHeight:1.4}}>{s.mode}</p>
+                <div style={{display:"flex",gap:4,paddingLeft:21,marginTop:5,flexWrap:"wrap"}}>
+                  {s.gives.email&&<span style={{fontSize:9,color:"#10b981",background:"rgba(16,185,129,.1)",padding:"1px 6px",borderRadius:99}}>email</span>}
+                  {s.gives.phone&&<span style={{fontSize:9,color:"#fbbf24",background:"rgba(251,191,36,.1)",padding:"1px 6px",borderRadius:99}}>tel</span>}
+                  {s.gives.linkedin&&<span style={{fontSize:9,color:"#60a5fa",background:"rgba(96,165,250,.1)",padding:"1px 6px",borderRadius:99}}>LI</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* CENTER PANEL */}
+      <div style={{flex:1,overflowY:"auto",padding:"28px 32px"}}>
+        <div style={{marginBottom:22,paddingBottom:18,borderBottom:".5px solid rgba(255,255,255,0.07)"}}>
+          <div style={{display:"flex",alignItems:"flex-start",gap:14,marginBottom:10}}>
+            <span style={{fontSize:32,lineHeight:1}}>{activeSource.icon}</span>
+            <div style={{flex:1}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:4}}>
+                <h2 className="display" style={{fontSize:26,fontWeight:300,letterSpacing:"-.01em"}}>{activeSource.label}</h2>
+                <span style={{padding:"3px 10px",borderRadius:99,fontSize:10,fontWeight:500,background:tier.bg,color:tier.color}}>{tier.label}</span>
+                <span style={{padding:"3px 10px",borderRadius:99,fontSize:10,fontWeight:400,background:pc.bg,color:pc.color,border:`.5px solid ${pc.border}`}}>{activeSource.actorLabel}</span>
+              </div>
+              <p style={{fontSize:12,color:"rgba(138,138,138,.8)"}}>{activeSource.mode}</p>
+            </div>
+          </div>
+          <p style={{fontSize:13,color:"rgba(138,138,138,.9)",lineHeight:1.75,maxWidth:580,marginBottom:10}}>{activeSource.desc}</p>
+          <div style={{display:"inline-flex",alignItems:"center",gap:6,padding:"6px 12px",borderRadius:8,background:"rgba(201,168,76,0.07)",border:".5px solid rgba(201,168,76,.2)"}}>
+            <span style={{fontSize:12}}>Tip</span>
+            <span style={{fontSize:12,color:"rgba(138,138,138,.85)"}}>{activeSource.tip}</span>
+          </div>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:14,marginBottom:20,maxWidth:640}}>
+          {activeSource.fields.map(f=>(
+            <div key={f.key} style={f.type==="textarea"?{gridColumn:"1/-1"}:{}}>
+              <label style={{display:"block",fontSize:10,letterSpacing:".06em",textTransform:"uppercase",color:"rgba(138,138,138,.7)",marginBottom:6,fontWeight:500}}>
+                {f.label}{f.required&&<span style={{color:"var(--gold)",marginLeft:3}}>*</span>}
+              </label>
+              {f.type==="select"?(
+                <select value={inputs[f.key]||f.options?.[0]||""} onChange={e=>setInputs(p=>({...p,[f.key]:e.target.value}))} className="inp" style={{cursor:"pointer"}}>
+                  {f.options?.map(o=><option key={o} value={o}>{o}</option>)}
+                </select>
+              ):f.type==="textarea"?(
+                <textarea value={inputs[f.key]||""} onChange={e=>setInputs(p=>({...p,[f.key]:e.target.value}))} placeholder={f.placeholder} className="inp" style={{minHeight:90,resize:"vertical",lineHeight:1.6}} />
+              ):(
+                <input type={f.type} value={inputs[f.key]||""} onChange={e=>setInputs(p=>({...p,[f.key]:e.target.value}))} placeholder={f.placeholder} onKeyDown={e=>e.key==="Enter"&&extract()} className="inp" />
+              )}
+              {f.hint&&<p style={{fontSize:10,color:"rgba(138,138,138,.5)",marginTop:4}}>{f.hint}</p>}
+            </div>
+          ))}
+        </div>
+
+        <button onClick={extract} disabled={loading} className="btn btn-primary" style={{marginBottom:28}}>
+          {loading?"Extrayendo leads...":"Extraer leads"}
+        </button>
+
+        {results.length>0&&(
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <p style={{fontSize:12,letterSpacing:".06em",textTransform:"uppercase",color:"rgba(138,138,138,.7)",fontWeight:600}}>{results.length} leads encontrados</p>
+              <span className="pill pill-gold">{results.filter(l=>!added.has(l.id)).length} sin agregar</span>
+            </div>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <div style={{display:"flex",background:"rgba(255,255,255,0.04)",border:".5px solid rgba(255,255,255,0.07)",borderRadius:7,padding:2}}>
+                {(["list","grid"] as const).map(m=>(
+                  <button key={m} onClick={()=>setViewMode(m)} style={{padding:"4px 10px",borderRadius:5,border:"none",cursor:"pointer",background:viewMode===m?"rgba(255,255,255,0.07)":"transparent",color:viewMode===m?"var(--txt)":"rgba(138,138,138,.6)",fontSize:12}}>{m==="list"?"List":"Grid"}</button>
+                ))}
+              </div>
+              <button onClick={addAll} disabled={results.every(l=>added.has(l.id))} className="btn btn-ghost" style={{fontSize:12}}>+ Agregar todos</button>
+            </div>
+          </div>
+        )}
+
+        {results.length>0&&(
+          <div style={viewMode==="grid"?{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}:{display:"flex",flexDirection:"column",gap:10}}>
+            {results.map(lead=>{
+              const isDone = added.has(lead.id);
+              return (
+                <div key={lead.id} className="glass" style={{padding:viewMode==="grid"?"16px 18px":"14px 20px",border:`.5px solid ${isDone?"rgba(201,168,76,.3)":"rgba(255,255,255,0.07)"}`,display:"flex",flexDirection:viewMode==="grid"?"column":"row",alignItems:viewMode==="grid"?"flex-start":"center",gap:viewMode==="grid"?10:16,transition:"all .18s",opacity:isDone?.65:1}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3,flexWrap:"wrap"}}>
+                      <p style={{fontWeight:500,fontSize:13,color:"var(--txt)"}}>{lead.name}</p>
+                      {isDone&&<span style={{fontSize:9,color:"var(--gold)",border:".5px solid var(--gold-b)",padding:"1px 7px",borderRadius:99,background:"var(--gold-m)"}}>Agregado</span>}
+                      <span className="mono" style={{marginLeft:"auto",fontSize:16,fontWeight:300,color:scoreColor(lead.score),flexShrink:0}}>{lead.score}</span>
+                    </div>
+                    <p style={{fontSize:12,color:"rgba(138,138,138,.8)",marginBottom:8}}>{lead.role}{lead.company?` - ${lead.company}`:""}</p>
+                    <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:6}}>
+                      {lead.linkedin_url&&<ContactChip icon="LI" label="LinkedIn" color="#60a5fa" border="rgba(96,165,250,.25)" bg="rgba(96,165,250,.08)" href={lead.linkedin_url} />}
+                      {lead.email&&<ContactChip icon="@" label={lead.email} color="#10b981" border="rgba(16,185,129,.25)" bg="rgba(16,185,129,.08)" />}
+                      {lead.phone&&<ContactChip icon="Tel" label={lead.phone} color="#fbbf24" border="rgba(251,191,36,.25)" bg="rgba(251,191,36,.1)" />}
+                      <ContactChip icon="" label={lead.temp} color={tempColor(lead.temp)} border={`${tempColor(lead.temp)}35`} bg={`${tempColor(lead.temp)}12`} />
+                    </div>
+                    {lead.notes&&<p style={{fontSize:11,color:"rgba(138,138,138,.6)",lineHeight:1.5}}>{lead.notes}</p>}
+                    <ScoreBar score={lead.score} />
+                  </div>
+                  <button onClick={()=>addOne(lead)} disabled={isDone} className={`btn ${isDone?"btn-ghost":"btn-ghost"}`} style={{flexShrink:0,fontSize:12,alignSelf:viewMode==="grid"?"stretch":"center"}}>{isDone?"En CRM":"+ CRM"}</button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {!loading&&results.length===0&&(
+          <div style={{textAlign:"center",padding:"48px 24px",border:".5px dashed rgba(255,255,255,0.07)",borderRadius:12,maxWidth:460}}>
+            <p style={{fontSize:40,marginBottom:14}}>{activeSource.icon}</p>
+            <p className="display" style={{fontSize:22,fontWeight:300,marginBottom:8}}>{activeSource.label}</p>
+            <p style={{fontSize:13,color:"rgba(138,138,138,.7)",lineHeight:1.75,marginBottom:16}}>Completa los campos y clickea <strong style={{color:"var(--gold)"}}>Extraer leads</strong> para comenzar.</p>
+            <p style={{fontSize:11,color:"rgba(138,138,138,.4)",marginTop:20}}>Necesitas API Key de Apify en Settings - API Keys</p>
+          </div>
+        )}
       </div>
     </div>
   );
 }
+
 
 // ── LEAD DETAIL & ADD MODALS ──────────────────────────────────────────────────
 function LeadDetail({lead,onClose,onUpdate}:{lead:Lead;onClose:()=>void;onUpdate:(l:Lead)=>void}) {
@@ -1294,7 +1542,7 @@ function AppLayout({appUser,onLogout}:{appUser:AppUser;onLogout:()=>void}) {
     dashboard: <Dashboard leads={leads} />,
     pipeline:  <Pipeline leads={leads} onLeadClick={setSelLead} />,
     closer:    <VistaCloser leads={leads} onLeadClick={setSelLead} />,
-    buscador:  <Prospector onAddLead={l=>setLeads(p=>[l,...p])} />,
+    buscador:  <Prospector onAddLead={l=>setLeads(p=>[l,...p])} workspaceId={appUser.workspace.id} />,
     generar:   <RedaccionIA leads={leads} />,
     email:     <EmailMarketing isAdmin={isAdmin} workspaceId={appUser.workspace.id} />,
     cadence:   <Cadences isAdmin={isAdmin} workspaceId={appUser.workspace.id} />,
