@@ -162,7 +162,7 @@ npm run dev
 ### Deploy to Vercel
 
 ```bash
-vercel --prod
+[vercel --prod](https://closerai-olive.vercel.app/)
 ```
 
 Don't forget to add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Vercel's Environment Variables settings.
@@ -219,9 +219,9 @@ MIT © Ornella Olmos
 
 ## Connect
 
-- **Portfolio:** [your-portfolio-url.com]
-- **LinkedIn:** [linkedin.com/in/ornella-olmos]
-- **Email:** [your-email@domain.com]
+- **Portfolio:** (https://closerai-olive.vercel.app/)
+- **LinkedIn:** www.linkedin.com/in/ornella-olmos-motos
+- **Email:** olmosornella@gmail.com
 
 ---
 
