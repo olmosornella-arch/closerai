@@ -2412,6 +2412,44 @@ function AuthScreen({onAuth}:{onAuth:(u:User,m:Member,w:Workspace)=>void}) {
 
 // ── SIDEBAR ───────────────────────────────────────────────────────────────────
 
+function VistaCloser({leads,onLeadClick}:{leads:Lead[];onLeadClick:(l:Lead)=>void}) {
+  const sorted=[...leads].sort((a,b)=>b.score-a.score);
+  return (
+    <div className="fade-up" style={{padding:"28px 32px",height:"100%",overflowY:"auto"}}>
+      <div style={{marginBottom:24}}>
+        <h1 className="display" style={{fontSize:36,fontWeight:300,letterSpacing:"-0.01em"}}>Vista Closer</h1>
+        <p style={{fontSize:13,color:"var(--txt2)",marginTop:4}}>Top oportunidades priorizadas por score</p>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:10,maxWidth:680}}>
+        {sorted.map((lead,i)=>(
+          <div key={lead.id} className="glass lead-card" onClick={()=>onLeadClick(lead)} style={{padding:"16px 20px",display:"flex",alignItems:"center",gap:16}}>
+            <span className="mono" style={{fontSize:20,fontWeight:300,color:"var(--txt3)",width:28,textAlign:"right",flexShrink:0}}>{i+1}</span>
+            <div style={{flex:1}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+                <div>
+                  <p style={{fontWeight:500,fontSize:14}}>{lead.name}</p>
+                  <p style={{fontSize:12,color:"var(--txt2)",marginTop:2}}>{lead.role}{lead.company?` · ${lead.company}`:""}</p>
+                </div>
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  <span className="pill" style={{background:`${tempColor(lead.temp)}18`,color:tempColor(lead.temp),border:`.5px solid ${tempColor(lead.temp)}35`,fontSize:10}}>{lead.temp}</span>
+                  <span className="pill pill-muted" style={{fontSize:10}}>{lead.stage}</span>
+                </div>
+              </div>
+              <ScoreBar score={lead.score} />
+              <div style={{display:"flex",gap:8,marginTop:8}}>
+                {lead.linkedin_url&&<a href={lead.linkedin_url} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:10,color:"#60a5fa",textDecoration:"none"}}>🔵 LinkedIn</a>}
+                {lead.phone&&<a href={`https://wa.me/${lead.phone.replace(/\D/g,"")}`} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:10,color:"#25D366",textDecoration:"none"}}>💚 WA</a>}
+                {lead.email&&<a href={`mailto:${lead.email}`} onClick={e=>e.stopPropagation()} style={{fontSize:10,color:"#10b981",textDecoration:"none"}}>✉ Mail</a>}
+              </div>
+            </div>
+            <span className="mono" style={{fontSize:26,fontWeight:300,color:scoreColor(lead.score),flexShrink:0}}>{lead.score}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const NAV_V8 = [
   {id:"session",   label:"Sesion del dia",  icon:"◈"},
   {id:"dashboard", label:"Dashboard",        icon:"⌘"},
