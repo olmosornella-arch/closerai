@@ -849,6 +849,21 @@ function ApiSettings({workspaceId}:{workspaceId:string}) {
 
 // ── REMAINING VIEWS (Dashboard, Pipeline, etc.) ───────────────────────────────
 
+interface SourceField {
+  key: string; label: string;
+  type: "text"|"number"|"select"|"textarea";
+  placeholder?: string; options?: string[];
+  required?: boolean; hint?: string;
+}
+interface ApifySource {
+  id: string; label: string; icon: string;
+  platform: "linkedin"|"instagram"|"facebook"|"maps"|"multi";
+  mode: string; actor: string; actorLabel: string;
+  desc: string; tip: string; tier: "free"|"freemium"|"paid";
+  gives: { phone: boolean; email: boolean; linkedin: boolean; };
+  fields: SourceField[];
+}
+
 const PROSPECTOR_SOURCES: ApifySource[] = [
   {id:"li_post",label:"Post LinkedIn",icon:"\u{1F4AC}",platform:"linkedin",mode:"Comentadores de un post",actor:"post-scraper/scrape-linkedin-posts",actorLabel:"post-scraper/scrape-linkedin-posts",desc:"Extrae todos los usuarios que comentaron o reaccionaron a un post publico. Leads warm que ya mostraron interes en el tema.",tip:"Buscar posts de referentes del nicho con 50+ comentarios para mejores resultados.",tier:"freemium",gives:{phone:false,email:true,linkedin:true},fields:[{key:"url",label:"URL del post",type:"text",placeholder:"https://linkedin.com/posts/...",required:true},{key:"limit",label:"Maximo resultados",type:"number",placeholder:"50",hint:"Recomendado: 30-100"}]},
   {id:"li_search",label:"Busqueda LinkedIn",icon:"\u{1F50D}",platform:"linkedin",mode:"Por keyword + rol + ciudad",actor:"get-leads/linkedin-scraper",actorLabel:"get-leads/linkedin-scraper",desc:"Busca perfiles por rol, industria, keyword y ubicacion. Devuelve nombre, empresa, URL de perfil y email cuando esta visible.",tip:"Usar rol en ingles para mejores resultados. Ej: 'Founder SaaS Buenos Aires'.",tier:"freemium",gives:{phone:false,email:true,linkedin:true},fields:[{key:"keyword",label:"Keyword o rol",type:"text",placeholder:"CEO startup",required:true},{key:"location",label:"Ubicacion",type:"text",placeholder:"Argentina"},{key:"industry",label:"Industria (opcional)",type:"text",placeholder:"Software, Coaching, Marketing..."},{key:"limit",label:"Maximo perfiles",type:"number",placeholder:"30"}]},
@@ -2487,19 +2502,6 @@ function AuthScreen({onAuth}:{onAuth:(u:User,m:Member,w:Workspace)=>void}) {
 }
 
 // ── SIDEBAR ───────────────────────────────────────────────────────────────────
-
-function ContactChip({icon,label,color,border,bg,href}:{icon:string;label:string;color:string;border:string;bg:string;href?:string}) {
-  const style:React.CSSProperties = {
-    display:"inline-flex",alignItems:"center",gap:4,padding:"2px 9px",
-    borderRadius:99,fontSize:10,fontWeight:500,
-    background:bg,color,border:`.5px solid ${border}`,
-    textDecoration:"none",cursor:href?"pointer":"default",
-    whiteSpace:"nowrap",maxWidth:200,overflow:"hidden",textOverflow:"ellipsis"
-  };
-  return href
-    ? <a href={href} target="_blank" rel="noopener noreferrer" style={style}>{icon} {label}</a>
-    : <span style={style}>{icon} {label}</span>;
-}
 
 function QualifyGate({leads,onScoreUpdate}:{leads:Lead[];onScoreUpdate:(id:string,score:number)=>void}) {
   const [sel,setSel]=useState<Lead|null>(null);
