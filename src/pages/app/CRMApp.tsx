@@ -848,291 +848,6 @@ function ApiSettings({workspaceId}:{workspaceId:string}) {
 }
 
 // ── REMAINING VIEWS (Dashboard, Pipeline, etc.) ───────────────────────────────
-function Dashboard({leads}:{leads:Lead[]}) {
-  const warm=leads.filter(l=>l.temp!=="Frío");
-  const today=leads.filter(l=>l.next_action);
-  const avg=leads.length?(leads.reduce((a,b)=>a+b.score,0)/leads.length).toFixed(1):"0";
-  return (
-    <div className="fade-up" style={{padding:"32px 36px",overflowY:"auto",height:"100%"}}>
-      <div style={{marginBottom:32}}>
-        <h1 className="display" style={{fontSize:36,fontWeight:300,letterSpacing:"-0.01em",lineHeight:1.1}}>Dashboard</h1>
-        <p style={{fontSize:13,color:"var(--txt2)",marginTop:6}}>{new Date().toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"})}</p>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:16,marginBottom:36}}>
-        <StatCard label="Leads Warm" value={`${warm.length}`} sub={`de ${leads.length} totales`} accent="#C9A84C" />
-        <StatCard label="Score Promedio" value={avg} sub="BANT estimado" accent="#10b981" />
-        <StatCard label="Acción Hoy" value={`${today.length}`} sub="leads pendientes" accent="#6366f1" />
-        <StatCard label="Pipeline Activo" value={`${leads.filter(l=>l.stage!=="Cerrado").length}`} sub="en proceso" accent="#f59e0b" />
-      </div>
-      <div style={{marginBottom:28}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-          <h2 style={{fontSize:12,fontWeight:600,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)"}}>Misión del día</h2>
-          <span className="pill pill-gold">{today.length} pendientes</span>
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:12}}>
-          {today.slice(0,4).map(lead=>(
-            <div key={lead.id} className="glass" style={{padding:"16px 18px"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-                <p style={{fontWeight:500,fontSize:13}}>{lead.name}</p>
-                <span className="pill" style={{background:`${tempColor(lead.temp)}18`,color:tempColor(lead.temp),border:`.5px solid ${tempColor(lead.temp)}35`,fontSize:10}}>{lead.temp}</span>
-              </div>
-              <p style={{fontSize:11,color:"var(--txt2)",marginBottom:10}}>{lead.role}</p>
-              <ScoreBar score={lead.score} />
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:10}}>
-                <span style={{fontSize:11,color:"var(--txt3)"}}>{lead.next_action}</span>
-                <span className="mono" style={{fontSize:16,fontWeight:300,color:scoreColor(lead.score)}}>{lead.score}/10</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="glass" style={{padding:"18px 22px"}}>
-        <p style={{fontSize:11,letterSpacing:".08em",textTransform:"uppercase",color:"var(--txt2)",fontWeight:500,marginBottom:14}}>Flujo de trabajo</p>
-        <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-          {["Capturar leads","Escribir mensaje","Registrar respuesta","Mover en pipeline","Cerrar deal"].map((s,i)=>(
-            <span key={i} className="btn btn-ghost" style={{fontSize:12,padding:"6px 14px"}}>{s}</span>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Pipeline({leads,onLeadClick}:{leads:Lead[];onLeadClick:(l:Lead)=>void}) {
-  return (
-    <div className="fade-up" style={{padding:"32px 36px",height:"100%",overflowX:"auto"}}>
-      <div style={{marginBottom:24}}>
-        <h1 className="display" style={{fontSize:36,fontWeight:300,letterSpacing:"-0.01em"}}>CRM Pipeline</h1>
-        <p style={{fontSize:13,color:"var(--txt2)",marginTop:4}}>{leads.length} leads en seguimiento</p>
-      </div>
-      <div style={{display:"flex",gap:16,minWidth:"max-content",paddingBottom:24}}>
-        {STAGES.map(stage=>{
-          const col=leads.filter(l=>l.stage===stage);
-          return (
-            <div key={stage} style={{width:240}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <span style={{width:8,height:8,borderRadius:"50%",background:STAGE_COLORS[stage],display:"inline-block"}} />
-                  <span style={{fontSize:12,fontWeight:600,color:"var(--txt2)",letterSpacing:".04em",textTransform:"uppercase"}}>{stage}</span>
-                </div>
-                <span className="pill pill-muted">{col.length}</span>
-              </div>
-              <div style={{display:"flex",flexDirection:"column",gap:10,minHeight:200}}>
-                {col.map(lead=><LeadCard key={lead.id} lead={lead} onClick={()=>onLeadClick(lead)} />)}
-                {col.length===0&&<div style={{border:".5px dashed var(--border)",borderRadius:"var(--radius)",padding:"24px 16px",textAlign:"center"}}><p style={{fontSize:12,color:"var(--txt3)"}}>Sin leads</p></div>}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function VistaCloser({leads,onLeadClick}:{leads:Lead[];onLeadClick:(l:Lead)=>void}) {
-  const sorted=[...leads].sort((a,b)=>b.score-a.score);
-  return (
-    <div className="fade-up" style={{padding:"32px 36px",height:"100%",overflowY:"auto"}}>
-      <div style={{marginBottom:28}}>
-        <h1 className="display" style={{fontSize:36,fontWeight:300,letterSpacing:"-0.01em"}}>Vista Closer</h1>
-        <p style={{fontSize:13,color:"var(--txt2)",marginTop:4}}>Top opportunities priorizadas por score</p>
-      </div>
-      <div style={{display:"flex",flexDirection:"column",gap:12,maxWidth:680}}>
-        {sorted.map((lead,i)=>(
-          <div key={lead.id} className="glass lead-card" onClick={()=>onLeadClick(lead)} style={{padding:"18px 22px",display:"flex",alignItems:"center",gap:20}}>
-            <span className="mono" style={{fontSize:22,fontWeight:300,color:"var(--txt3)",width:28,textAlign:"right",flexShrink:0}}>{i+1}</span>
-            <div style={{flex:1}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
-                <div>
-                  <p style={{fontWeight:500,fontSize:14}}>{lead.name}</p>
-                  <p style={{fontSize:12,color:"var(--txt2)",marginTop:2}}>{lead.role}{lead.company?` · ${lead.company}`:""}</p>
-                </div>
-                <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                  <span className="pill" style={{background:`${tempColor(lead.temp)}18`,color:tempColor(lead.temp),border:`.5px solid ${tempColor(lead.temp)}35`,fontSize:10}}>{lead.temp}</span>
-                  <span className="pill pill-muted" style={{fontSize:10}}>{lead.stage}</span>
-                </div>
-              </div>
-              <ScoreBar score={lead.score} />
-            </div>
-            <span className="mono" style={{fontSize:28,fontWeight:300,color:scoreColor(lead.score),flexShrink:0}}>{lead.score}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function RedaccionIA({leads}:{leads:Lead[]}) {
-  const [sel,setSel]=useState<Lead|null>(null);
-  const [tone,setTone]=useState<"directo"|"empático"|"vsl">("directo");
-  const [msg,setMsg]=useState("");
-  const [loading,setLoading]=useState(false);
-  const toast=useToast();
-  async function gen(){
-    if(!sel)return;setLoading(true);await new Promise(r=>setTimeout(r,800));
-    const t={directo:`Hola ${sel.name}, vi tu perfil como ${sel.role} y quería conectar. Trabajo con perfiles como el tuyo optimizando el sistema de prospección B2B. ¿Tendrías 15 min esta semana?`,empático:`Hola ${sel.name} 👋 Analizando tu trabajo como ${sel.role} — creo que un sistema de outreach bien armado podría cambiar tu ritmo de crecimiento. ¿Charlamos?`,vsl:`${sel.name}, preparé un video corto (3 min) específico para vos como ${sel.role}. Explica cómo cerrar más deals sin prospectar manualmente. ¿Te lo mando?`};
-    setMsg(t[tone]);setLoading(false);
-  }
-  return (
-    <div className="fade-up" style={{padding:"32px 36px",height:"100%",overflowY:"auto"}}>
-      <div style={{marginBottom:28}}><h1 className="display" style={{fontSize:36,fontWeight:300,letterSpacing:"-0.01em"}}>Redacción IA</h1><p style={{fontSize:13,color:"var(--txt2)",marginTop:4}}>Generá mensajes personalizados</p></div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:24,maxWidth:840}}>
-        <div>
-          <Field label="Lead"><select className="inp" value={sel?.id||""} onChange={e=>setSel(leads.find(l=>l.id===e.target.value)||null)} style={{background:"var(--bg2)"}}><option value="">— Elegí un lead —</option>{leads.map(l=><option key={l.id} value={l.id}>{l.name} · {l.role}</option>)}</select></Field>
-          {sel&&<div className="glass" style={{padding:"16px 18px",marginBottom:16}}><p style={{fontWeight:500,marginBottom:4}}>{sel.name}</p><p style={{fontSize:12,color:"var(--txt2)",marginBottom:10}}>{sel.role}{sel.company?` · ${sel.company}`:""}</p><ScoreBar score={sel.score} /></div>}
-          <Field label="Tono"><div style={{display:"flex",gap:8}}>{(["directo","empático","vsl"] as const).map(t=><button key={t} className={`btn ${tone===t?"btn-primary":"btn-ghost"}`} style={{flex:1,fontSize:12,padding:"7px 10px",textTransform:"capitalize"}} onClick={()=>setTone(t)}>{t}</button>)}</div></Field>
-          <button className="btn btn-primary" style={{width:"100%",marginTop:4}} onClick={gen} disabled={!sel||loading}>{loading?"Generando...":"✦ Generar mensaje"}</button>
-        </div>
-        <div>
-          <Field label="Mensaje generado"><textarea className="inp" style={{minHeight:200,resize:"vertical",lineHeight:1.6}} value={msg} onChange={e=>setMsg(e.target.value)} placeholder="El mensaje aparecerá aquí..." /></Field>
-          {msg&&<div style={{display:"flex",gap:8}}><button className="btn btn-ghost" style={{flex:1,fontSize:12}} onClick={()=>{navigator.clipboard.writeText(msg);toast("Copiado","ok");}}>Copiar</button><button className="btn btn-ghost" style={{flex:1,fontSize:12}} onClick={gen}>Regenerar</button></div>}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Inbox({leads}:{leads:Lead[]}) {
-  const [sel,setSel]=useState<string|null>(null);
-  const [resp,setResp]=useState("");
-  const [analysis,setAnalysis]=useState("");
-  const [loading,setLoading]=useState(false);
-  const toast=useToast();
-  async function analyze(){if(!resp)return;setLoading(true);await new Promise(r=>setTimeout(r,700));setAnalysis("🟢 POSITIVO — Lead interesado. Acción recomendada: agendar call en 24h. Score: +1. Probabilidad cierre: alta.");setLoading(false);}
-  return (
-    <div className="fade-up" style={{padding:"32px 36px",height:"100%",overflowY:"auto"}}>
-      <div style={{marginBottom:28}}><h1 className="display" style={{fontSize:36,fontWeight:300,letterSpacing:"-0.01em"}}>Inbox</h1><p style={{fontSize:13,color:"var(--txt2)",marginTop:4}}>Analizá respuestas con IA</p></div>
-      <div style={{display:"grid",gridTemplateColumns:"220px 1fr",gap:20,maxWidth:800}}>
-        <div style={{display:"flex",flexDirection:"column",gap:8}}>{leads.slice(0,6).map(l=><div key={l.id} className={`glass ${sel===l.id?"glass-gold":""}`} style={{padding:"12px 14px",cursor:"pointer"}} onClick={()=>setSel(l.id)}><p style={{fontWeight:500,fontSize:13}}>{l.name}</p><p style={{fontSize:11,color:"var(--txt2)",marginTop:2}}>{l.role}</p></div>)}</div>
-        <div>
-          <Field label="Pegar respuesta del lead"><textarea className="inp" style={{minHeight:140,resize:"vertical",lineHeight:1.6}} value={resp} onChange={e=>setResp(e.target.value)} placeholder="Pegá aquí la respuesta recibida..." /></Field>
-          <button className="btn btn-primary" onClick={analyze} disabled={!resp||loading} style={{marginBottom:16}}>{loading?"Analizando...":"✦ Analizar con IA"}</button>
-          {analysis&&<div className="glass glass-gold" style={{padding:"16px 18px"}}><p style={{fontSize:13,lineHeight:1.7}}>{analysis}</p></div>}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function QualifyGate({leads,onScoreUpdate}:{leads:Lead[];onScoreUpdate:(id:string,score:number)=>void}) {
-  const [sel,setSel]=useState<Lead|null>(null);
-  const [ans,setAns]=useState({budget:"",authority:"",need:"",timeline:""});
-  const qs=[{k:"budget",l:"¿Tiene presupuesto?",opts:["No sabe","< $500/mes","$500-2k/mes","> $2k/mes"]},{k:"authority",l:"¿Es el decisor?",opts:["No","Influenciador","Co-decisor","Decisor único"]},{k:"need",l:"¿Urgencia del problema?",opts:["Baja","Media","Alta","Crítica"]},{k:"timeline",l:"¿Cuándo necesita solución?",opts:["> 6 meses","3-6 meses","1-3 meses","Ahora"]}] as const;
-  const vals=Object.values(ans);
-  const score=vals.some(v=>!v)?null:Math.round(vals.reduce((s,v)=>s+(["No sabe","No","Baja","> 6 meses"].includes(v)?2:["< $500/mes","Influenciador","Media","3-6 meses"].includes(v)?5:["$500-2k/mes","Co-decisor","Alta","1-3 meses"].includes(v)?8:10),0)/4*10)/10;
-  const toast=useToast();
-  return (
-    <div className="fade-up" style={{padding:"32px 36px",height:"100%",overflowY:"auto"}}>
-      <div style={{marginBottom:28}}><h1 className="display" style={{fontSize:36,fontWeight:300,letterSpacing:"-0.01em"}}>Qualify Gate</h1><p style={{fontSize:13,color:"var(--txt2)",marginTop:4}}>Calificación BANT interactiva</p></div>
-      <div style={{display:"grid",gridTemplateColumns:"200px 1fr",gap:20,maxWidth:760}}>
-        <div style={{display:"flex",flexDirection:"column",gap:8}}>{leads.map(l=><div key={l.id} className={`glass ${sel?.id===l.id?"glass-gold":""}`} style={{padding:"12px 14px",cursor:"pointer"}} onClick={()=>setSel(l)}><p style={{fontWeight:500,fontSize:12}}>{l.name}</p><ScoreBar score={l.score} /></div>)}</div>
-        <div>
-          {qs.map(q=><Field key={q.k} label={q.l}><div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{q.opts.map(opt=><button key={opt} className={`btn ${(ans as any)[q.k]===opt?"btn-primary":"btn-ghost"}`} style={{fontSize:12,padding:"6px 12px"}} onClick={()=>setAns(p=>({...p,[q.k]:opt}))}>{opt}</button>)}</div></Field>)}
-          {score!==null&&<div className="glass glass-gold" style={{padding:"20px 22px",marginTop:8}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <div><p style={{fontSize:11,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:4}}>Score BANT</p><p className="display" style={{fontSize:42,fontWeight:300,color:scoreColor(score)}}>{score}<span style={{fontSize:20,color:"var(--txt2)"}}>/10</span></p></div>
-              {sel&&<button className="btn btn-primary" onClick={()=>{onScoreUpdate(sel.id,Math.round(score));toast(`Score de ${sel.name} actualizado a ${Math.round(score)}`,"ok");}}>Actualizar score</button>}
-            </div>
-          </div>}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// PROSPECTOR v5 - 14 fuentes Apify (LinkedIn, Instagram, Facebook, Maps, Multi)
-
-interface SourceField {
-  key: string; label: string;
-  type: "text"|"number"|"select"|"textarea";
-  placeholder?: string; options?: string[];
-  required?: boolean; hint?: string;
-}
-interface ApifySource {
-  id: string; label: string; icon: string;
-  platform: "linkedin"|"instagram"|"facebook"|"maps"|"multi";
-  mode: string; actor: string; actorLabel: string;
-  desc: string; tip: string; tier: "free"|"freemium"|"paid";
-  gives: { phone: boolean; email: boolean; linkedin: boolean; };
-  fields: SourceField[];
-}
-
-const PROSPECTOR_SOURCES: ApifySource[] = [
-  {id:"li_post",label:"Post LinkedIn",icon:"\u{1F4AC}",platform:"linkedin",mode:"Comentadores de un post",actor:"post-scraper/scrape-linkedin-posts",actorLabel:"post-scraper/scrape-linkedin-posts",desc:"Extrae todos los usuarios que comentaron o reaccionaron a un post publico. Leads warm que ya mostraron interes en el tema.",tip:"Buscar posts de referentes del nicho con 50+ comentarios para mejores resultados.",tier:"freemium",gives:{phone:false,email:true,linkedin:true},fields:[{key:"url",label:"URL del post",type:"text",placeholder:"https://linkedin.com/posts/...",required:true},{key:"limit",label:"Maximo resultados",type:"number",placeholder:"50",hint:"Recomendado: 30-100"}]},
-  {id:"li_search",label:"Busqueda LinkedIn",icon:"\u{1F50D}",platform:"linkedin",mode:"Por keyword + rol + ciudad",actor:"get-leads/linkedin-scraper",actorLabel:"get-leads/linkedin-scraper",desc:"Busca perfiles por rol, industria, keyword y ubicacion. Devuelve nombre, empresa, URL de perfil y email cuando esta visible.",tip:"Usar rol en ingles para mejores resultados. Ej: 'Founder SaaS Buenos Aires'.",tier:"freemium",gives:{phone:false,email:true,linkedin:true},fields:[{key:"keyword",label:"Keyword o rol",type:"text",placeholder:"CEO startup",required:true},{key:"location",label:"Ubicacion",type:"text",placeholder:"Argentina"},{key:"industry",label:"Industria (opcional)",type:"text",placeholder:"Software, Coaching, Marketing..."},{key:"limit",label:"Maximo perfiles",type:"number",placeholder:"30"}]},
-  {id:"li_profile",label:"Perfil LinkedIn",icon:"\u{1F464}",platform:"linkedin",mode:"Enriquecer perfil individual",actor:"dev_fusion/linkedin-profile-scraper",actorLabel:"dev_fusion/linkedin-profile-scraper",desc:"Extrae todos los datos de un perfil: experiencia, educacion, skills, email y telefono si estan visibles. Ideal antes de contactar.",tip:"Pegar la URL completa con /in/username. Funciona sin cookies.",tier:"paid",gives:{phone:true,email:true,linkedin:true},fields:[{key:"profileUrl",label:"URL del perfil",type:"text",placeholder:"https://linkedin.com/in/username",required:true}]},
-  {id:"li_company",label:"Empresa LinkedIn",icon:"\u{1F3E2}",platform:"linkedin",mode:"Empleados de una empresa",actor:"apimaestro/linkedin-company-employees",actorLabel:"apimaestro/linkedin-company-employees",desc:"Extrae todos los empleados de una empresa con filtros por cargo y seniority. No requiere cookies ni cuenta LinkedIn.",tip:"Ideal para encontrar el decisor exacto dentro de una empresa que ya identificaste como target.",tier:"paid",gives:{phone:false,email:true,linkedin:true},fields:[{key:"companyUrl",label:"URL de empresa",type:"text",placeholder:"https://linkedin.com/company/nombre",required:true},{key:"role",label:"Filtrar por cargo (opcional)",type:"text",placeholder:"CEO, Marketing, Growth..."},{key:"limit",label:"Maximo empleados",type:"number",placeholder:"50"}]},
-  {id:"ig_hashtag",label:"Hashtag Instagram",icon:"#\uFE0F\u20E3",platform:"instagram",mode:"Usuarios por hashtag de nicho",actor:"apify/instagram-hashtag-scraper",actorLabel:"apify/instagram-hashtag-scraper",desc:"Extrae usuarios que postean con un hashtag. Perfecto para encontrar emprendedores, coaches y duenos de negocio por nicho e interes.",tip:"Usar hashtags de nicho especifico. Ej: #coachingempresarial en vez de #coach.",tier:"free",gives:{phone:false,email:false,linkedin:false},fields:[{key:"hashtag",label:"Hashtag (sin #)",type:"text",placeholder:"emprendedorlatinoamerica",required:true},{key:"limit",label:"Maximo usuarios",type:"number",placeholder:"60",hint:"Free tier: hasta 60/run"}]},
-  {id:"ig_profile",label:"Perfil Instagram",icon:"\u{1F4F8}",platform:"instagram",mode:"Datos de perfil publico",actor:"apify/instagram-api-scraper",actorLabel:"apify/instagram-api-scraper",desc:"Extrae bio, seguidores, posts recientes, hashtags usados y datos de contacto de un perfil publico. Para calificar leads de IG.",tip:"Combinar con el hashtag scraper: primero lista, despues enriqueces perfil por perfil.",tier:"free",gives:{phone:true,email:true,linkedin:false},fields:[{key:"username",label:"Username (sin @)",type:"text",placeholder:"username",required:true}]},
-  {id:"ig_phone",label:"Telefonos Instagram",icon:"\u{1F4DE}",platform:"instagram",mode:"Extrae telefonos de perfiles IG",actor:"api-empire/instagram-phone-number-scraper",actorLabel:"api-empire/instagram-phone-number-scraper",desc:"Extrae telefonos publicos de perfiles de Instagram. Ideal para armar listas de contacto de emprendedores y negocios que ponen su numero en la bio.",tip:"Funcionara mejor con perfiles de negocios que de personas - las bios de negocios suelen tener telefono.",tier:"freemium",gives:{phone:true,email:false,linkedin:false},fields:[{key:"usernames",label:"Usernames (uno por linea)",type:"textarea",placeholder:"username1\nusername2\nusername3",required:true,hint:"Hasta 100 perfiles por run"}]},
-  {id:"fb_pages",label:"Paginas Facebook",icon:"\u{1F4D8}",platform:"facebook",mode:"Paginas de negocios + tel + email",actor:"making-data-meaningful/facebook-pages-scraper",actorLabel:"making-data-meaningful/facebook-pages-scraper",desc:"Extrae paginas de negocios con nombre, categoria, telefono, email, sitio web, direccion, seguidores y rating. El mas completo para B2B local.",tip:"Buscar por categoria + ciudad. Ej: 'coaches de negocios Mendoza'.",tier:"freemium",gives:{phone:true,email:true,linkedin:false},fields:[{key:"query",label:"Busqueda",type:"text",placeholder:"coaches de negocios Mendoza",required:true},{key:"limit",label:"Maximo paginas",type:"number",placeholder:"40"},{key:"country",label:"Pais",type:"select",options:["Argentina","Mexico","Colombia","Chile","Espana","Uruguay","Peru","Brasil"]}]},
-  {id:"fb_post",label:"Post Facebook",icon:"\u{1F4AC}",platform:"facebook",mode:"Comentadores de un post FB",actor:"apify/facebook-posts-scraper",actorLabel:"apify/facebook-posts-scraper",desc:"Extrae usuarios que comentaron en un post publico de Facebook. Util para grupos y paginas de nicho con alta interaccion.",tip:"Los grupos publicos de emprendedores son la mina de oro - posts con 100+ comentarios.",tier:"freemium",gives:{phone:false,email:false,linkedin:false},fields:[{key:"url",label:"URL del post",type:"text",placeholder:"https://facebook.com/post/...",required:true},{key:"limit",label:"Maximo comentarios",type:"number",placeholder:"50"}]},
-  {id:"fb_phone",label:"Telefonos Facebook",icon:"\u{1F4F1}",platform:"facebook",mode:"Extrae telefonos de paginas FB",actor:"scraper-mind/facebook-phone-number-scraper",actorLabel:"scraper-mind/facebook-phone-number-scraper",desc:"Extrae telefonos publicos de paginas de Facebook por keyword y pais. Formato E.164, deduplicado y listo para CRM o campanas de llamadas.",tip:"Combinar con el Pages scraper - primero encontras las paginas, despues extraes los telefonos.",tier:"freemium",gives:{phone:true,email:false,linkedin:false},fields:[{key:"keyword",label:"Keyword",type:"text",placeholder:"gym Mendoza",required:true},{key:"country",label:"Pais",type:"select",options:["Argentina (+54)","Mexico (+52)","Colombia (+57)","Chile (+56)","Espana (+34)","Uruguay (+598)"],required:true},{key:"limit",label:"Maximo telefonos",type:"number",placeholder:"50"}]},
-  {id:"fb_user",label:"Usuarios Facebook",icon:"\u{1F465}",platform:"facebook",mode:"Busqueda de usuarios FB",actor:"lexis-solutions/facebook-user-search-scraper",actorLabel:"lexis-solutions/facebook-user-search-scraper",desc:"Busca usuarios de Facebook por nombre o keyword. Util para enriquecer leads que ya tenes y matchear perfiles entre plataformas.",tip:"Mas efectivo para perfiles publicos con nombre completo. Usarlo para enriquecer, no para prospectar desde cero.",tier:"freemium",gives:{phone:false,email:false,linkedin:false},fields:[{key:"query",label:"Nombre o keyword",type:"text",placeholder:"Juan Perez emprendedor",required:true},{key:"limit",label:"Maximo resultados",type:"number",placeholder:"20"}]},
-  {id:"maps",label:"Google Maps",icon:"\u{1F4CD}",platform:"maps",mode:"Locales + tel + email + rating",actor:"dev-sinior/google-maps-scraper-premium",actorLabel:"dev-sinior/google-maps-scraper-premium",desc:"Extrae negocios locales con nombre, telefono, email, rating, direccion, horario y redes sociales. El mejor para prospectar negocios fisicos.",tip:"Cuanto mas especifico el nicho y zona, mejores leads. Ej: 'psicologos Palermo CABA' en vez de 'psicologos Buenos Aires'.",tier:"freemium",gives:{phone:true,email:true,linkedin:false},fields:[{key:"query",label:"Busqueda",type:"text",placeholder:"estudios contables Mendoza",required:true},{key:"maxResults",label:"Maximo resultados",type:"number",placeholder:"50",hint:"Max 120 por area. Usar gridSubdivisions para mas."},{key:"language",label:"Idioma resultados",type:"select",options:["es","en","pt"]},{key:"country",label:"Pais",type:"select",options:["Argentina","Mexico","Colombia","Chile","Espana","Uruguay","Peru"]}]},
-  {id:"contact_scraper",label:"Web Contact Scraper",icon:"\u{1F310}",platform:"multi",mode:"Email + tel + redes de cualquier web",actor:"vdrmota/contact-info-scraper",actorLabel:"vdrmota/contact-info-scraper",desc:"Crawlea cualquier sitio web y extrae emails, telefonos y perfiles de redes sociales. Gratis. Ideal si tenes una lista de sitios web de leads.",tip:"Pegar varios dominios a la vez. Ej: el sitio de una empresa que ya te interesa para sacar el contacto directo.",tier:"free",gives:{phone:true,email:true,linkedin:true},fields:[{key:"urls",label:"URLs (una por linea)",type:"textarea",placeholder:"https://empresa1.com\nhttps://empresa2.com\nhttps://empresa3.com",required:true,hint:"Hasta 50 URLs por run en plan free"}]},
-  {id:"zoominfo",label:"ZoomInfo Scraper",icon:"\u{1F3AF}",platform:"multi",mode:"Empresas + ejecutivos + emails + tel",actor:"scraped/zoominfo-people-scraper",actorLabel:"scraped/zoominfo-people-scraper",desc:"Alternativa barata a Apollo y Lusha. Extrae emails verificados, telefonos, cargos y datos de empresa desde ZoomInfo. Hasta 500k leads/mes.",tip:"El mas completo para B2B con datos verificados. Combinar con LinkedIn search para maxima cobertura.",tier:"paid",gives:{phone:true,email:true,linkedin:true},fields:[{key:"keyword",label:"Keyword o empresa",type:"text",placeholder:"CEO fintech Argentina",required:true},{key:"industry",label:"Industria",type:"text",placeholder:"SaaS, Fintech, Edtech..."},{key:"limit",label:"Maximo contactos",type:"number",placeholder:"50"}]}
-];
-
-const PROSPECTOR_PLATFORMS = [
-  {id:"all",label:"Todas",icon:"\u25C8",color:"#C9A84C"},
-  {id:"linkedin",label:"LinkedIn",icon:"\u{1F535}",color:"#60a5fa"},
-  {id:"instagram",label:"Instagram",icon:"\u{1F4F8}",color:"#f472b6"},
-  {id:"facebook",label:"Facebook",icon:"\u{1F4D8}",color:"#818cf8"},
-  {id:"maps",label:"Maps",icon:"\u{1F4CD}",color:"#10b981"},
-  {id:"multi",label:"Multi",icon:"\u{1F310}",color:"#fb923c"}
-];
-
-const PROSPECTOR_PC: Record<string,{bg:string;color:string;border:string}> = {
-  linkedin:  {bg:"rgba(96,165,250,0.08)",color:"#60a5fa",border:"rgba(96,165,250,0.2)"},
-  instagram: {bg:"rgba(244,114,182,0.08)",color:"#f472b6",border:"rgba(244,114,182,0.2)"},
-  facebook:  {bg:"rgba(129,140,248,0.08)",color:"#818cf8",border:"rgba(129,140,248,0.2)"},
-  maps:      {bg:"rgba(16,185,129,0.08)",color:"#10b981",border:"rgba(16,185,129,0.2)"},
-  multi:     {bg:"rgba(251,146,60,0.08)",color:"#fb923c",border:"rgba(251,146,60,0.2)"}
-};
-
-const PROSPECTOR_TIER: Record<string,{label:string;bg:string;color:string}> = {
-  free:     {label:"Gratis",  bg:"rgba(16,185,129,0.1)",  color:"#10b981"},
-  freemium: {label:"Freemium",bg:"rgba(201,168,76,0.1)",  color:"#C9A84C"},
-  paid:     {label:"De pago", bg:"rgba(248,113,113,0.1)", color:"#f87171"}
-};
-
-function mockProspectorLeads(src: ApifySource, inp: Record<string,string>, wsId: string): Lead[] {
-  const mk = (name:string,role:string,company:string,score:number,temp:"Hot"|"Warm"|"Frio",extra?:Partial<Lead>):Lead => ({
-    id:uid(),workspace_id:wsId,name,role,company,score,temp:temp as any,
-    stage:"Nuevo",source:src.id,created_at:new Date().toISOString(),...extra
-  });
-  const d: Record<string,Lead[]> = {
-    li_post:[mk("Valentina Mier","CEO","StartupBA",9,"Hot",{linkedin_url:"https://linkedin.com/in/vmier",email:"v.mier@startupba.com"}),mk("Marcos Reyes","CMO","Scale Co",8,"Warm",{linkedin_url:"https://linkedin.com/in/mreyes"}),mk("Andrea Font","Founder","EduTech AR",9,"Hot",{email:"andrea@edutech.com",linkedin_url:"https://linkedin.com/in/afont"}),mk("Lucas Mendez","Growth Lead","SaaS MX",7,"Warm",{linkedin_url:"https://linkedin.com/in/lmendez"}),mk("Romina Saez","Co-founder","FinteAR",8,"Warm",{linkedin_url:"https://linkedin.com/in/rsaez",email:"r.saez@fintear.io"})],
-    li_search:[mk("Carolina Suarez","Founder","InnovaBA",8,"Warm",{linkedin_url:"https://linkedin.com/in/csuarez",email:"c.suarez@innova.com"}),mk("Ramiro Vega","CEO","VegaTech",9,"Hot",{linkedin_url:"https://linkedin.com/in/rvega",phone:"+54 11 4XXX-XXXX"}),mk("Sofia Ruiz","Co-founder","EduGrow",7,"Warm",{linkedin_url:"https://linkedin.com/in/sruiz"}),mk("Tomas Ibarra","Director Comercial","AgenciaGrow",8,"Warm",{linkedin_url:"https://linkedin.com/in/tibarra",email:"tibarra@agenciagrow.com"})],
-    li_profile:[mk("Lead Enriquecido","Founder","TechCo",8,"Warm",{linkedin_url:inp.profileUrl,email:"contacto@techco.com",phone:"+54 11 4XXX-XXXX",notes:"Experiencia: 8 anos en SaaS. Skills: Growth, Product."})],
-    li_company:[mk("Ana Lopez","Head of Marketing","Target Co",8,"Warm",{linkedin_url:"https://linkedin.com/in/alopez",email:"a.lopez@targetco.com"}),mk("Bruno Herrera","CEO","Target Co",9,"Hot",{linkedin_url:"https://linkedin.com/in/bherrera",email:"b.herrera@targetco.com"}),mk("Claudia Mora","CFO","Target Co",7,"Frio",{linkedin_url:"https://linkedin.com/in/cmora"})],
-    ig_hashtag:[mk("@emprendedora.ok","Creadora contenido","Self",7,"Warm"),mk("@coachlauramx","Coach de negocios","Self",8,"Warm"),mk("@startup.latam","Fundadora","StartupLatam",9,"Hot"),mk("@digitalmentor_ar","Mentor digital","Self",6,"Frio"),mk("@negocios.reales","Emprendedor","Self",7,"Warm")],
-    ig_profile:[mk(inp.username||"@usuario","Emprendedor/Influencer","Self",7,"Warm",{email:"contacto@email.com",phone:"+54 9 11 4XXX-XXXX",notes:"Seguidores: 12.4K - Engagement: 4.2% - Nicho: negocios digitales"})],
-    ig_phone:[mk("@negocio_mendoza","Dueno local","Negocio MZA",7,"Warm",{phone:"+54 261 4XX-XXXX"}),mk("@coach.ar","Coach","Self",8,"Warm",{phone:"+54 11 4XXX-XXXX"}),mk("@gymfitpro","Gym","FitPro",7,"Warm",{phone:"+54 351 4XX-XXXX"})],
-    fb_pages:[mk("Estudio Juridico Perez","Abogado","Est. Juridico Perez",7,"Warm",{phone:"+54 261 4XX-XXXX",email:"info@estudioperez.com"}),mk("Psicologa Dra. Garcia","Psicologa","Consultorio Garcia",8,"Warm",{phone:"+54 261 4XX-YYYY",email:"dra.garcia@gmail.com"}),mk("Agencia Digital Sur","Director","Agencia Digital Sur",9,"Hot",{phone:"+54 261 4XX-ZZZZ",email:"hola@agenciadigitalsur.com"}),mk("Gym PowerFit","Dueno","PowerFit Gym",7,"Warm",{phone:"+54 261 4XX-AAAA",email:"contacto@powerfit.com"}),mk("Consultora RH Mendoza","Directora","ConsultoraRH",8,"Warm",{phone:"+54 261 4XX-BBBB",email:"info@consultorarhMZA.com"})],
-    fb_post:[mk("Juan Perez","Emprendedor","JuanP Ventures",7,"Warm"),mk("Maria Gonzalez","Coach","Self",8,"Warm"),mk("Carlos Vidal","CEO","StartupMZA",9,"Hot",{email:"carlos@startupmza.com"})],
-    fb_phone:[mk("Gym XFit Mendoza","Dueno","XFit",7,"Warm",{phone:"+54 261 4XX-1111"}),mk("Clinica Dental Norte","Odontologo","Clinica Norte",7,"Warm",{phone:"+54 261 4XX-2222"}),mk("Resto La Pampa","Dueno","La Pampa",6,"Frio",{phone:"+54 261 4XX-3333"}),mk("Agencia Turismo Sol","Director","TurismoSol",8,"Warm",{phone:"+54 261 4XX-4444",email:"sol@turismosol.com"})],
-    fb_user:[mk("Juan Carlos Rios","Emprendedor","Self",6,"Frio"),mk("Laura Medina","Founder","LauraM Consulting",7,"Warm",{email:"laura@lauram.com"})],
-    maps:[mk("Estudio Contable Mendoza","Contador","Est. Contable MZA",7,"Warm",{phone:"+54 261 4XX-XXXX",email:"info@contablemza.com",notes:"Rating: 4.8 estrellas - 47 resenas"}),mk("Psicologa Marta Lopez","Psicologa","Consultorio Lopez",8,"Warm",{phone:"+54 261 4XX-YYYY",notes:"Rating: 5.0 estrellas - 23 resenas"}),mk("Gym FitLife","Dueno de gimnasio","FitLife Gym",7,"Warm",{phone:"+54 261 4XX-ZZZZ",email:"contacto@fitlife.com",notes:"Rating: 4.5 estrellas - 89 resenas"}),mk("Marketing Digital AR","Director","MktAR",9,"Hot",{email:"hola@mktar.com",phone:"+54 261 4XX-AAAA",notes:"Rating: 4.9 estrellas - 31 resenas"}),mk("Centro Medico Norte","Director","CMN",7,"Warm",{phone:"+54 261 4XX-BBBB",email:"turno@cmn.com",notes:"Rating: 4.3 estrellas - 112 resenas"})],
-    contact_scraper:[mk("Empresa 1","CEO","Tech SA",8,"Warm",{email:"ceo@empresa1.com",phone:"+54 11 4XXX-1111",linkedin_url:"https://linkedin.com/company/empresa1"}),mk("Empresa 2","Fundador","Agency Co",7,"Warm",{email:"hola@empresa2.com",phone:"+54 11 4XXX-2222",linkedin_url:"https://linkedin.com/company/empresa2"})],
-    zoominfo:[mk("Sergio Almeida","VP Sales","FinCorp SA",9,"Hot",{email:"s.almeida@fincorp.com",phone:"+54 11 4XXX-XXXX",linkedin_url:"https://linkedin.com/in/salmeida",notes:"Empresa: 500+ empleados - Revenue: $10M+"}),mk("Patricia Nunez","CMO","GrowthCo",8,"Warm",{email:"p.nunez@growthco.com",phone:"+54 11 4XXX-YYYY",linkedin_url:"https://linkedin.com/in/pnunez",notes:"Empresa: 50-200 empleados - SaaS B2B"}),mk("Hernan Castro","CEO","StartupHub",9,"Hot",{email:"h.castro@startuphub.com",phone:"+54 11 4XXX-ZZZZ",linkedin_url:"https://linkedin.com/in/hcastro",notes:"Empresa: 10-50 empleados - Seed stage"})]
-  };
-  return d[src.id] || [];
-}
-
-function ContactChip({icon,label,color,border,bg,href}:{icon:string;label:string;color:string;border:string;bg:string;href?:string}) {
-  const style:React.CSSProperties = {
-    display:"inline-flex",alignItems:"center",gap:4,padding:"2px 9px",
-    borderRadius:99,fontSize:10,fontWeight:500,
-    background:bg,color,border:`.5px solid ${border}`,
-    textDecoration:"none",cursor:href?"pointer":"default",
-    whiteSpace:"nowrap",maxWidth:200,overflow:"hidden",textOverflow:"ellipsis"
-  };
-  return href
-    ? <a href={href} target="_blank" rel="noopener noreferrer" style={style}>{icon} {label}</a>
-    : <span style={style}>{icon} {label}</span>;
-}
 
 function Prospector({onAddLead,workspaceId}:{onAddLead:(l:Lead)=>void;workspaceId:string}) {
   const [platform,setPlatform] = useState("all");
@@ -1316,54 +1031,1307 @@ function Prospector({onAddLead,workspaceId}:{onAddLead:(l:Lead)=>void;workspaceI
 }
 
 
-// ── LEAD DETAIL & ADD MODALS ──────────────────────────────────────────────────
-function LeadDetail({lead,onClose,onUpdate}:{lead:Lead;onClose:()=>void;onUpdate:(l:Lead)=>void}) {
-  const [l,setL]=useState(lead);const toast=useToast();
+// ── ACTIVITY LOG TYPE ─────────────────────────────────────────────────────────
+interface Activity {
+  id: string; lead_id: string; type: "dm"|"email"|"call"|"whatsapp"|"note"|"stage_change"|"import";
+  channel?: string; content?: string; created_at: string; user_name?: string;
+}
+interface BusinessProfile {
+  product: string; niche: string; goal_dms: number; goal_calls: number;
+  goal_closes: number; ticket: number; channels: string[];
+}
+
+// ── ACTIVITY HELPERS ──────────────────────────────────────────────────────────
+const ACTIVITY_ICONS: Record<string,string> = {
+  dm:"💬", email:"✉", call:"📞", whatsapp:"💚", note:"📝", stage_change:"→", import:"📥"
+};
+const CHANNEL_COLORS: Record<string,string> = {
+  linkedin:"#60a5fa", instagram:"#f472b6", facebook:"#818cf8",
+  whatsapp:"#25D366", email:"#10b981", call:"#fbbf24"
+};
+
+// ── ACTIVITY TIMELINE ─────────────────────────────────────────────────────────
+function ActivityTimeline({activities,onAdd}:{activities:Activity[];onAdd:(a:Activity)=>void}) {
+  const [open,setOpen] = useState(false);
+  const [form,setForm] = useState({type:"dm" as Activity["type"],channel:"linkedin",content:""});
+  const toast = useToast();
+
+  function addActivity() {
+    const a:Activity = {
+      id:uid(), lead_id:"", type:form.type, channel:form.channel,
+      content:form.content, created_at:new Date().toISOString(), user_name:"Vos"
+    };
+    onAdd(a);
+    setForm({type:"dm",channel:"linkedin",content:""});
+    setOpen(false);
+    toast("Actividad registrada","ok");
+  }
+
   return (
-    <Modal open title={l.name} onClose={onClose}>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
-        <Field label="Nombre"><input className="inp" value={l.name} onChange={e=>setL(p=>({...p,name:e.target.value}))} /></Field>
-        <Field label="Rol"><input className="inp" value={l.role} onChange={e=>setL(p=>({...p,role:e.target.value}))} /></Field>
-        <Field label="Empresa"><input className="inp" value={l.company||""} onChange={e=>setL(p=>({...p,company:e.target.value}))} /></Field>
-        <Field label="Temperatura"><select className="inp" value={l.temp} onChange={e=>setL(p=>({...p,temp:e.target.value as Lead["temp"]}))}><option>Warm</option><option>Hot</option><option>Frío</option></select></Field>
-        <Field label="Etapa"><select className="inp" value={l.stage} onChange={e=>setL(p=>({...p,stage:e.target.value}))}>{STAGES.map(s=><option key={s}>{s}</option>)}</select></Field>
-        <Field label="Score (1-10)"><input className="inp" type="number" min={1} max={10} value={l.score} onChange={e=>setL(p=>({...p,score:+e.target.value}))} /></Field>
+    <div style={{marginTop:16}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+        <p style={{fontSize:11,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",fontWeight:500}}>Historial de actividad</p>
+        <button className="btn btn-ghost" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>setOpen(p=>!p)}>+ Registrar</button>
       </div>
-      <Field label="LinkedIn URL"><input className="inp" value={l.linkedin_url||""} onChange={e=>setL(p=>({...p,linkedin_url:e.target.value}))} placeholder="https://linkedin.com/in/..." /></Field>
-      <Field label="Próxima acción"><input className="inp" value={l.next_action||""} onChange={e=>setL(p=>({...p,next_action:e.target.value}))} /></Field>
-      <Field label="Notas"><textarea className="inp" style={{minHeight:80,resize:"vertical"}} value={l.notes||""} onChange={e=>setL(p=>({...p,notes:e.target.value}))} /></Field>
-      <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:8}}>
-        <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-        <button className="btn btn-primary" onClick={()=>{onUpdate(l);toast("Lead actualizado","ok");onClose();}}>Guardar</button>
+
+      {open&&(
+        <div className="glass" style={{padding:"12px 14px",marginBottom:12,border:".5px solid var(--gold-b)"}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+            <div>
+              <label style={{fontSize:10,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",display:"block",marginBottom:4}}>Tipo</label>
+              <select className="inp" style={{fontSize:12}} value={form.type} onChange={e=>setForm(p=>({...p,type:e.target.value as any}))}>
+                <option value="dm">DM</option><option value="email">Email</option>
+                <option value="call">Llamada</option><option value="whatsapp">WhatsApp</option>
+                <option value="note">Nota</option>
+              </select>
+            </div>
+            <div>
+              <label style={{fontSize:10,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",display:"block",marginBottom:4}}>Canal</label>
+              <select className="inp" style={{fontSize:12}} value={form.channel} onChange={e=>setForm(p=>({...p,channel:e.target.value}))}>
+                <option value="linkedin">LinkedIn</option><option value="instagram">Instagram</option>
+                <option value="facebook">Facebook</option><option value="whatsapp">WhatsApp</option>
+                <option value="email">Email</option><option value="call">Llamada</option>
+              </select>
+            </div>
+          </div>
+          <textarea className="inp" style={{minHeight:60,resize:"vertical",fontSize:12,marginBottom:8}} value={form.content} onChange={e=>setForm(p=>({...p,content:e.target.value}))} placeholder="¿Qué pasó? ¿Qué dijiste? ¿Qué respondió?" />
+          <div style={{display:"flex",gap:8}}>
+            <button className="btn btn-ghost" style={{flex:1,fontSize:12}} onClick={()=>setOpen(false)}>Cancelar</button>
+            <button className="btn btn-primary" style={{flex:1,fontSize:12}} onClick={addActivity} disabled={!form.content}>Guardar</button>
+          </div>
+        </div>
+      )}
+
+      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+        {activities.length===0&&<p style={{fontSize:12,color:"var(--txt3)",fontStyle:"italic"}}>Sin actividad registrada aun.</p>}
+        {[...activities].reverse().map(a=>(
+          <div key={a.id} style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+            <div style={{width:28,height:28,borderRadius:"50%",background:`${CHANNEL_COLORS[a.channel||"email"]||"var(--surface)"}18`,border:`.5px solid ${CHANNEL_COLORS[a.channel||"email"]||"var(--border)"}35`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,flexShrink:0}}>
+              {ACTIVITY_ICONS[a.type]||"●"}
+            </div>
+            <div style={{flex:1}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
+                <span style={{fontSize:11,fontWeight:500,color:"var(--txt)",textTransform:"capitalize"}}>{a.type} via {a.channel}</span>
+                <span style={{fontSize:10,color:"var(--txt3)"}}>{new Date(a.created_at).toLocaleDateString("es-ES",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</span>
+              </div>
+              {a.content&&<p style={{fontSize:12,color:"var(--txt2)",lineHeight:1.5}}>{a.content}</p>}
+            </div>
+          </div>
+        ))}
       </div>
-    </Modal>
+    </div>
+  );
+}
+
+// ── SEND MESSAGE PANEL (Quick outreach) ───────────────────────────────────────
+function SendMessagePanel({lead,onSent}:{lead:Lead;onSent:(a:Activity)=>void}) {
+  const [channel,setChannel] = useState("linkedin");
+  const [msg,setMsg] = useState("");
+  const [sent,setSent] = useState(false);
+  const toast = useToast();
+
+  const CHANNELS = [
+    {id:"linkedin",label:"LinkedIn",icon:"🔵",color:"#60a5fa"},
+    {id:"instagram",label:"Instagram",icon:"📸",color:"#f472b6"},
+    {id:"whatsapp",label:"WhatsApp",icon:"💚",color:"#25D366"},
+    {id:"email",label:"Email",icon:"✉",color:"#10b981"},
+  ];
+
+  function openNative() {
+    if (channel==="whatsapp"&&lead.phone) {
+      const num = lead.phone.replace(/\D/g,"");
+      const text = encodeURIComponent(msg);
+      window.open(`https://wa.me/${num}?text=${text}`,"_blank");
+    } else if (channel==="linkedin"&&lead.linkedin_url) {
+      window.open(lead.linkedin_url,"_blank");
+    } else if (channel==="instagram"&&lead.instagram_url) {
+      window.open(lead.instagram_url,"_blank");
+    } else if (channel==="email"&&lead.email) {
+      window.open(`mailto:${lead.email}?body=${encodeURIComponent(msg)}`,"_blank");
+    }
+  }
+
+  function markSent() {
+    const a:Activity = {
+      id:uid(), lead_id:lead.id, type:"dm", channel,
+      content:`Mensaje enviado: "${msg.slice(0,80)}${msg.length>80?"...":""}"`,
+      created_at:new Date().toISOString(), user_name:"Vos"
+    };
+    onSent(a);
+    setSent(true);
+    toast(`DM via ${channel} registrado en el CRM`,"ok");
+    setTimeout(()=>setSent(false),3000);
+  }
+
+  function copyMsg() {
+    navigator.clipboard.writeText(msg);
+    toast("Mensaje copiado","ok");
+  }
+
+  const ch = CHANNELS.find(c=>c.id===channel)!;
+
+  return (
+    <div style={{marginTop:16}}>
+      <p style={{fontSize:11,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",fontWeight:500,marginBottom:10}}>Enviar mensaje</p>
+      <div className="glass" style={{padding:"14px 16px"}}>
+        {/* Channel selector */}
+        <div style={{display:"flex",gap:6,marginBottom:12}}>
+          {CHANNELS.map(c=>(
+            <button key={c.id} onClick={()=>setChannel(c.id)}
+              style={{flex:1,padding:"6px 4px",borderRadius:8,border:`.5px solid ${channel===c.id?c.color+"60":"var(--border)"}`,background:channel===c.id?`${c.color}12`:"transparent",color:channel===c.id?c.color:"var(--txt2)",fontSize:11,fontWeight:500,cursor:"pointer",transition:"all .15s",fontFamily:"'DM Sans',sans-serif"}}>
+              {c.icon} {c.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Message area */}
+        <textarea className="inp" style={{minHeight:100,resize:"vertical",lineHeight:1.6,marginBottom:10,fontSize:13}}
+          value={msg} onChange={e=>setMsg(e.target.value)}
+          placeholder={`Escribi o pega el mensaje para enviar via ${ch.label}...`} />
+
+        {/* Actions */}
+        <div style={{display:"flex",gap:8}}>
+          <button className="btn btn-ghost" style={{fontSize:12,flex:1}} onClick={copyMsg} disabled={!msg}>
+            Copiar texto
+          </button>
+          {(lead.linkedin_url||lead.instagram_url||lead.phone||lead.email)&&(
+            <button onClick={openNative} disabled={!msg}
+              style={{flex:1,padding:"8px",borderRadius:8,border:`.5px solid ${ch.color}60`,background:`${ch.color}12`,color:ch.color,fontSize:12,fontWeight:500,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>
+              Abrir {ch.label} →
+            </button>
+          )}
+          <button className="btn btn-primary" style={{flex:1,fontSize:12}} onClick={markSent} disabled={!msg||sent}>
+            {sent?"✓ Registrado":"Marcar enviado"}
+          </button>
+        </div>
+
+        {/* Quick links */}
+        <div style={{display:"flex",gap:8,marginTop:10,flexWrap:"wrap"}}>
+          {lead.linkedin_url&&<a href={lead.linkedin_url} target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:"#60a5fa",textDecoration:"none"}}>🔵 Abrir perfil LinkedIn</a>}
+          {lead.instagram_url&&<a href={lead.instagram_url} target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:"#f472b6",textDecoration:"none"}}>📸 Abrir Instagram</a>}
+          {lead.phone&&<a href={`https://wa.me/${lead.phone.replace(/\D/g,"")}`} target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:"#25D366",textDecoration:"none"}}>💚 WhatsApp directo</a>}
+          {lead.email&&<a href={`mailto:${lead.email}`} style={{fontSize:11,color:"#10b981",textDecoration:"none"}}>✉ Email directo</a>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── CSV IMPORT ────────────────────────────────────────────────────────────────
+function CsvImport({onImport,workspaceId}:{onImport:(leads:Lead[])=>void;workspaceId:string}) {
+  const [step,setStep] = useState<"upload"|"map"|"preview">("upload");
+  const [rows,setRows] = useState<string[][]>([]);
+  const [headers,setHeaders] = useState<string[]>([]);
+  const [mapping,setMapping] = useState<Record<string,string>>({});
+  const [preview,setPreview] = useState<Lead[]>([]);
+  const toast = useToast();
+
+  const FIELDS = [
+    {key:"name",label:"Nombre *",required:true},
+    {key:"role",label:"Rol/Cargo"},
+    {key:"company",label:"Empresa"},
+    {key:"email",label:"Email"},
+    {key:"phone",label:"Teléfono"},
+    {key:"linkedin_url",label:"LinkedIn URL"},
+    {key:"notes",label:"Notas"},
+    {key:"score",label:"Score (1-10)"},
+  ];
+
+  function parseCSV(text:string) {
+    const lines = text.trim().split("\n");
+    const h = lines[0].split(",").map(c=>c.trim().replace(/"/g,""));
+    const r = lines.slice(1).map(l=>l.split(",").map(c=>c.trim().replace(/"/g,"")));
+    setHeaders(h);
+    setRows(r);
+    // Auto-map obvious columns
+    const autoMap:Record<string,string> = {};
+    FIELDS.forEach(f=>{
+      const match = h.find(h=>h.toLowerCase().includes(f.key)||h.toLowerCase().includes(f.label.toLowerCase().replace(" *","")));
+      if(match) autoMap[f.key]=match;
+    });
+    setMapping(autoMap);
+    setStep("map");
+  }
+
+  function onFileChange(e:React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => parseCSV(ev.target?.result as string);
+    reader.readAsText(file);
+  }
+
+  function buildPreview() {
+    const leads:Lead[] = rows.slice(0,5).map(row=>{
+      const get = (field:string) => {
+        const col = mapping[field];
+        if (!col) return "";
+        const idx = headers.indexOf(col);
+        return idx>=0 ? row[idx]||"" : "";
+      };
+      return {
+        id:uid(), workspace_id:workspaceId,
+        name:get("name")||"Sin nombre",
+        role:get("role")||"",
+        company:get("company")||"",
+        email:get("email")||"",
+        phone:get("phone")||"",
+        linkedin_url:get("linkedin_url")||"",
+        notes:get("notes")||"",
+        score:parseInt(get("score"))||7,
+        temp:"Warm" as const,
+        stage:"Nuevo",
+        source:"import",
+        created_at:new Date().toISOString()
+      };
+    });
+    setPreview(leads);
+    setStep("preview");
+  }
+
+  function doImport() {
+    const leads:Lead[] = rows.map(row=>{
+      const get = (field:string) => {
+        const col = mapping[field];
+        if (!col) return "";
+        const idx = headers.indexOf(col);
+        return idx>=0 ? row[idx]||"" : "";
+      };
+      return {
+        id:uid(), workspace_id:workspaceId,
+        name:get("name")||"Sin nombre",
+        role:get("role")||"",
+        company:get("company")||"",
+        email:get("email")||"",
+        phone:get("phone")||"",
+        linkedin_url:get("linkedin_url")||"",
+        notes:get("notes")||"",
+        score:parseInt(get("score"))||7,
+        temp:"Warm" as const,
+        stage:"Nuevo",
+        source:"import",
+        created_at:new Date().toISOString()
+      };
+    }).filter(l=>l.name!=="Sin nombre");
+    onImport(leads);
+    toast(`${leads.length} leads importados al CRM`,"ok");
+    setStep("upload");
+    setRows([]);
+    setHeaders([]);
+    setMapping({});
+  }
+
+  return (
+    <div className="fade-up" style={{padding:"32px 36px",height:"100%",overflowY:"auto"}}>
+      <div style={{marginBottom:24}}>
+        <h1 className="display" style={{fontSize:36,fontWeight:300,letterSpacing:"-0.01em"}}>Importar Leads</h1>
+        <p style={{fontSize:13,color:"var(--txt2)",marginTop:4}}>Carga tu CRM existente desde CSV</p>
+      </div>
+
+      {step==="upload"&&(
+        <div style={{maxWidth:560}}>
+          <div className="glass" style={{padding:"40px",textAlign:"center",border:".5px dashed var(--gold-b)",cursor:"pointer"}}
+            onClick={()=>document.getElementById("csvInput")?.click()}>
+            <p style={{fontSize:32,marginBottom:12}}>📥</p>
+            <p className="display" style={{fontSize:22,fontWeight:300,marginBottom:8}}>Arrastrar CSV o clickear</p>
+            <p style={{fontSize:13,color:"var(--txt2)",marginBottom:16}}>Soporta exports de Apollo, Notion, LinkedIn Sales Navigator, HubSpot, cualquier planilla</p>
+            <input id="csvInput" type="file" accept=".csv,.txt" style={{display:"none"}} onChange={onFileChange} />
+            <button className="btn btn-primary">Seleccionar archivo</button>
+          </div>
+          <div className="glass" style={{padding:"16px 18px",marginTop:16}}>
+            <p style={{fontSize:12,fontWeight:500,marginBottom:8}}>Columnas soportadas:</p>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {["Nombre","Rol/Cargo","Empresa","Email","Teléfono","LinkedIn URL","Score","Notas"].map(f=>(
+                <span key={f} className="pill pill-muted" style={{fontSize:11}}>{f}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {step==="map"&&(
+        <div style={{maxWidth:640}}>
+          <div className="glass glass-gold" style={{padding:"16px 18px",marginBottom:20}}>
+            <p style={{fontSize:13,fontWeight:500}}>{rows.length} filas detectadas · {headers.length} columnas</p>
+            <p style={{fontSize:12,color:"var(--txt2)",marginTop:2}}>Mapeá las columnas de tu archivo a los campos del CRM</p>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20}}>
+            {FIELDS.map(f=>(
+              <div key={f.key}>
+                <label style={{display:"block",fontSize:11,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:6,fontWeight:500}}>{f.label}</label>
+                <select className="inp" value={mapping[f.key]||""} onChange={e=>setMapping(p=>({...p,[f.key]:e.target.value}))}>
+                  <option value="">-- No importar --</option>
+                  {headers.map(h=><option key={h} value={h}>{h}</option>)}
+                </select>
+              </div>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:10}}>
+            <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setStep("upload")}>Volver</button>
+            <button className="btn btn-primary" style={{flex:1}} onClick={buildPreview} disabled={!mapping.name}>Vista previa →</button>
+          </div>
+        </div>
+      )}
+
+      {step==="preview"&&(
+        <div style={{maxWidth:720}}>
+          <div className="glass glass-gold" style={{padding:"14px 18px",marginBottom:16}}>
+            <p style={{fontSize:13,fontWeight:500}}>Vista previa de los primeros 5 leads · {rows.length} totales a importar</p>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:20}}>
+            {preview.map(lead=>(
+              <div key={lead.id} className="glass" style={{padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <p style={{fontWeight:500,fontSize:13}}>{lead.name}</p>
+                  <p style={{fontSize:12,color:"var(--txt2)",marginTop:2}}>{lead.role}{lead.company?` · ${lead.company}`:""}</p>
+                  <div style={{display:"flex",gap:6,marginTop:6}}>
+                    {lead.email&&<span style={{fontSize:10,color:"#10b981"}}>✉ {lead.email}</span>}
+                    {lead.phone&&<span style={{fontSize:10,color:"#fbbf24"}}>📞 {lead.phone}</span>}
+                    {lead.linkedin_url&&<span style={{fontSize:10,color:"#60a5fa"}}>🔵 LinkedIn</span>}
+                  </div>
+                </div>
+                <span className="mono" style={{fontSize:18,color:scoreColor(lead.score)}}>{lead.score}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:10}}>
+            <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setStep("map")}>Modificar mapeo</button>
+            <button className="btn btn-primary" style={{flex:1}} onClick={doImport}>
+              Importar {rows.length} leads al CRM
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── DAILY SESSION ─────────────────────────────────────────────────────────────
+function DailySession({leads,profile,onLeadClick,onMarkSent}:{
+  leads:Lead[]; profile:BusinessProfile|null;
+  onLeadClick:(l:Lead)=>void; onMarkSent:(leadId:string,channel:string)=>void;
+}) {
+  const today = leads.filter(l=>l.next_action&&l.stage!=="Cerrado");
+  const followUp = leads.filter(l=>l.stage==="Contactado"&&l.temp!=="Frío");
+  const warmHot = leads.filter(l=>(l.temp==="Hot"||l.temp==="Warm")&&l.stage!=="Cerrado").sort((a,b)=>b.score-a.score);
+  const [sentToday,setSentToday] = useState<Set<string>>(new Set());
+
+  function markDone(id:string) {
+    setSentToday(p=>new Set([...p,id]));
+    onMarkSent(id,"linkedin");
+  }
+
+  return (
+    <div className="fade-up" style={{padding:"32px 36px",height:"100%",overflowY:"auto"}}>
+      {/* Header */}
+      <div style={{marginBottom:28}}>
+        <h1 className="display" style={{fontSize:36,fontWeight:300,letterSpacing:"-0.01em"}}>Sesion del dia</h1>
+        <p style={{fontSize:13,color:"var(--txt2)",marginTop:4}}>
+          {new Date().toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"})}
+        </p>
+      </div>
+
+      {/* Goal tracker */}
+      {profile&&(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:28}}>
+          {[
+            {label:"Meta DMs",current:sentToday.size,goal:profile.goal_dms,color:"var(--gold)"},
+            {label:"Meta Calls",current:0,goal:profile.goal_calls,color:"#10b981"},
+            {label:"Meta Cierres",current:leads.filter(l=>l.stage==="Cerrado").length,goal:profile.goal_closes,color:"#6366f1"},
+          ].map(g=>(
+            <div key={g.label} className="glass" style={{padding:"16px 18px"}}>
+              <p style={{fontSize:11,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:8}}>{g.label}</p>
+              <div style={{display:"flex",alignItems:"baseline",gap:4,marginBottom:8}}>
+                <span className="mono" style={{fontSize:28,fontWeight:300,color:g.color}}>{g.current}</span>
+                <span style={{fontSize:13,color:"var(--txt3)"}}>/ {g.goal}</span>
+              </div>
+              <div style={{height:3,borderRadius:99,background:"var(--border)"}}>
+                <div style={{height:"100%",borderRadius:99,background:g.color,width:`${Math.min((g.current/g.goal)*100,100)}%`,transition:"width .5s"}} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
+        {/* Accion hoy */}
+        <div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <p style={{fontSize:12,fontWeight:600,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)"}}>Accion requerida hoy</p>
+            <span className="pill pill-gold">{today.length}</span>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {today.slice(0,6).map(lead=>(
+              <div key={lead.id} className="glass" style={{padding:"12px 14px",display:"flex",alignItems:"center",gap:12,opacity:sentToday.has(lead.id)?.5:1,transition:"opacity .3s"}}>
+                <div style={{flex:1,cursor:"pointer"}} onClick={()=>onLeadClick(lead)}>
+                  <p style={{fontWeight:500,fontSize:13}}>{lead.name}</p>
+                  <p style={{fontSize:11,color:"var(--txt2)",marginTop:1}}>{lead.next_action}</p>
+                </div>
+                <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                  <span className="mono" style={{fontSize:16,color:scoreColor(lead.score)}}>{lead.score}</span>
+                  <button
+                    onClick={()=>markDone(lead.id)}
+                    disabled={sentToday.has(lead.id)}
+                    style={{padding:"5px 10px",borderRadius:8,border:`.5px solid ${sentToday.has(lead.id)?"var(--gold-b)":"var(--border)"}`,background:sentToday.has(lead.id)?"var(--gold-m)":"var(--surface)",color:sentToday.has(lead.id)?"var(--gold)":"var(--txt2)",fontSize:11,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>
+                    {sentToday.has(lead.id)?"✓":"Hecho"}
+                  </button>
+                </div>
+              </div>
+            ))}
+            {today.length===0&&<p style={{fontSize:13,color:"var(--txt3)",fontStyle:"italic"}}>No hay acciones pendientes para hoy.</p>}
+          </div>
+        </div>
+
+        {/* Follow-ups */}
+        <div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <p style={{fontSize:12,fontWeight:600,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)"}}>Follow-up pendiente</p>
+            <span className="pill pill-muted">{followUp.length}</span>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {followUp.slice(0,6).map(lead=>(
+              <div key={lead.id} className="glass lead-card" style={{padding:"12px 14px"}} onClick={()=>onLeadClick(lead)}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                  <p style={{fontWeight:500,fontSize:13}}>{lead.name}</p>
+                  <span className="pill" style={{background:`${tempColor(lead.temp)}18`,color:tempColor(lead.temp),border:`.5px solid ${tempColor(lead.temp)}35`,fontSize:10}}>{lead.temp}</span>
+                </div>
+                <p style={{fontSize:11,color:"var(--txt2)"}}>{lead.role}{lead.company?` · ${lead.company}`:""}</p>
+                <ScoreBar score={lead.score} />
+              </div>
+            ))}
+            {followUp.length===0&&<p style={{fontSize:13,color:"var(--txt3)",fontStyle:"italic"}}>No hay follow-ups pendientes.</p>}
+          </div>
+        </div>
+      </div>
+
+      {/* Top opportunities */}
+      <div style={{marginTop:24}}>
+        <p style={{fontSize:12,fontWeight:600,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:12}}>Top oportunidades del pipeline</p>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:10}}>
+          {warmHot.slice(0,6).map(lead=>(
+            <div key={lead.id} className="glass lead-card" style={{padding:"12px 14px"}} onClick={()=>onLeadClick(lead)}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                <p style={{fontWeight:500,fontSize:12}}>{lead.name}</p>
+                <span className="mono" style={{fontSize:16,color:scoreColor(lead.score)}}>{lead.score}</span>
+              </div>
+              <p style={{fontSize:11,color:"var(--txt2)",marginBottom:6}}>{lead.stage}</p>
+              <ScoreBar score={lead.score} />
+              <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>
+                {lead.linkedin_url&&<a href={lead.linkedin_url} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:10,color:"#60a5fa",textDecoration:"none"}}>🔵 LI</a>}
+                {lead.phone&&<a href={`https://wa.me/${lead.phone.replace(/\D/g,"")}`} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:10,color:"#25D366",textDecoration:"none"}}>💚 WA</a>}
+                {lead.email&&<a href={`mailto:${lead.email}`} onClick={e=>e.stopPropagation()} style={{fontSize:10,color:"#10b981",textDecoration:"none"}}>✉ Mail</a>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── BUSINESS SETUP (Onboarding de proposito) ──────────────────────────────────
+function BusinessSetup({onSave}:{onSave:(p:BusinessProfile)=>void}) {
+  const [step,setStep] = useState(0);
+  const [form,setForm] = useState<BusinessProfile>({
+    product:"",niche:"",goal_dms:20,goal_calls:5,goal_closes:2,ticket:0,channels:["linkedin"]
+  });
+
+  const STEPS = [
+    {
+      label:"¿Que vendes?",
+      hint:"Describe tu producto o servicio en una linea",
+      field:"product" as const,
+      type:"text",
+      placeholder:"Ej: Comunidad paga de emprendedores remotos, coaching 1:1, agencia de marketing..."
+    },
+    {
+      label:"¿En que nicho operas?",
+      hint:"Tu cliente ideal, industria o mercado objetivo",
+      field:"niche" as const,
+      type:"text",
+      placeholder:"Ej: Founders de SaaS en LATAM, duenos de gimnasios, coaches de negocios..."
+    },
+  ];
+
+  const CHANNELS_OPT = [
+    {id:"linkedin",label:"LinkedIn",icon:"🔵"},
+    {id:"instagram",label:"Instagram",icon:"📸"},
+    {id:"facebook",label:"Facebook",icon:"📘"},
+    {id:"whatsapp",label:"WhatsApp",icon:"💚"},
+    {id:"email",label:"Email",icon:"✉"},
+  ];
+
+  function toggleChannel(id:string) {
+    setForm(p=>({...p,channels:p.channels.includes(id)?p.channels.filter(c=>c!==id):[...p.channels,id]}));
+  }
+
+  if (step < STEPS.length) {
+    const s = STEPS[step];
+    const progress = (step/4)*100;
+    return (
+      <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--bg)",backgroundImage:"radial-gradient(ellipse 60% 40% at 50% 0%,rgba(201,168,76,0.06) 0%,transparent 70%)"}}>
+        <div style={{maxWidth:520,width:"100%",padding:24}}>
+          <div style={{textAlign:"center",marginBottom:40}}>
+            <p className="display" style={{fontSize:14,letterSpacing:".1em",textTransform:"uppercase",color:"var(--gold)",marginBottom:8}}>Configuracion inicial</p>
+            <p className="display" style={{fontSize:32,fontWeight:300}}>Contame sobre tu negocio</p>
+          </div>
+          <div style={{height:2,background:"var(--border)",borderRadius:99,marginBottom:32,overflow:"hidden"}}>
+            <div style={{height:"100%",background:"var(--gold)",width:`${progress}%`,transition:"width .4s"}} />
+          </div>
+          <div className="glass" style={{padding:"32px 28px",border:".5px solid var(--gold-b)"}}>
+            <p style={{fontSize:11,letterSpacing:".08em",textTransform:"uppercase",color:"var(--gold)",marginBottom:8,fontWeight:500}}>{step+1} de 4</p>
+            <h2 className="display" style={{fontSize:26,fontWeight:400,marginBottom:8}}>{s.label}</h2>
+            <p style={{fontSize:13,color:"var(--txt2)",marginBottom:20}}>{s.hint}</p>
+            <textarea className="inp" style={{minHeight:80,resize:"vertical",fontSize:14,lineHeight:1.6,marginBottom:16}}
+              value={form[s.field]} onChange={e=>setForm(p=>({...p,[s.field]:e.target.value}))}
+              placeholder={s.placeholder} autoFocus />
+            <button className="btn btn-primary" style={{width:"100%",padding:"11px"}}
+              onClick={()=>setStep(p=>p+1)} disabled={!form[s.field]}>
+              Continuar →
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step===2) {
+    return (
+      <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--bg)"}}>
+        <div style={{maxWidth:520,width:"100%",padding:24}}>
+          <div style={{height:2,background:"var(--border)",borderRadius:99,marginBottom:32,overflow:"hidden"}}>
+            <div style={{height:"100%",background:"var(--gold)",width:"75%"}} />
+          </div>
+          <div className="glass" style={{padding:"32px 28px",border:".5px solid var(--gold-b)"}}>
+            <p style={{fontSize:11,letterSpacing:".08em",textTransform:"uppercase",color:"var(--gold)",marginBottom:8,fontWeight:500}}>3 de 4</p>
+            <h2 className="display" style={{fontSize:26,fontWeight:400,marginBottom:8}}>¿Por que canales prospectas?</h2>
+            <p style={{fontSize:13,color:"var(--txt2)",marginBottom:20}}>Selecciona todos los que uses</p>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:20}}>
+              {CHANNELS_OPT.map(c=>(
+                <button key={c.id} onClick={()=>toggleChannel(c.id)}
+                  style={{padding:"8px 16px",borderRadius:8,border:`.5px solid ${form.channels.includes(c.id)?"var(--gold-b)":"var(--border)"}`,background:form.channels.includes(c.id)?"var(--gold-m)":"transparent",color:form.channels.includes(c.id)?"var(--gold)":"var(--txt2)",fontSize:13,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",transition:"all .15s"}}>
+                  {c.icon} {c.label}
+                </button>
+              ))}
+            </div>
+            <button className="btn btn-primary" style={{width:"100%",padding:"11px"}}
+              onClick={()=>setStep(3)} disabled={form.channels.length===0}>
+              Continuar →
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 3 - Goals
+  return (
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--bg)"}}>
+      <div style={{maxWidth:520,width:"100%",padding:24}}>
+        <div style={{height:2,background:"var(--border)",borderRadius:99,marginBottom:32,overflow:"hidden"}}>
+          <div style={{height:"100%",background:"var(--gold)",width:"100%"}} />
+        </div>
+        <div className="glass" style={{padding:"32px 28px",border:".5px solid var(--gold-b)"}}>
+          <p style={{fontSize:11,letterSpacing:".08em",textTransform:"uppercase",color:"var(--gold)",marginBottom:8,fontWeight:500}}>4 de 4</p>
+          <h2 className="display" style={{fontSize:26,fontWeight:400,marginBottom:8}}>Tus metas semanales</h2>
+          <p style={{fontSize:13,color:"var(--txt2)",marginBottom:20}}>Para trackear tu progreso diario</p>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+            {[
+              {label:"DMs por semana",field:"goal_dms" as const,placeholder:"20"},
+              {label:"Calls por semana",field:"goal_calls" as const,placeholder:"5"},
+              {label:"Cierres por semana",field:"goal_closes" as const,placeholder:"2"},
+              {label:"Ticket promedio (USD)",field:"ticket" as const,placeholder:"500"},
+            ].map(g=>(
+              <div key={g.field}>
+                <label style={{display:"block",fontSize:11,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:6,fontWeight:500}}>{g.label}</label>
+                <input type="number" className="inp" value={form[g.field]||""} onChange={e=>setForm(p=>({...p,[g.field]:+e.target.value}))} placeholder={g.placeholder} />
+              </div>
+            ))}
+          </div>
+          {form.ticket>0&&(
+            <div className="glass glass-gold" style={{padding:"12px 14px",marginBottom:16}}>
+              <p style={{fontSize:12,color:"var(--txt2)"}}>Revenue potencial semanal:</p>
+              <p className="display" style={{fontSize:24,fontWeight:300,color:"var(--gold)"}}>
+                ${(form.goal_closes*form.ticket).toLocaleString()} USD
+              </p>
+            </div>
+          )}
+          <button className="btn btn-primary" style={{width:"100%",padding:"11px"}} onClick={()=>onSave(form)}>
+            Entrar al CRM ✦
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── RESPONSE TEMPLATES ────────────────────────────────────────────────────────
+const RESPONSE_TEMPLATES = {
+  primer_contacto: [
+    {label:"DM LinkedIn frio",channel:"linkedin",text:"Hola [Nombre], vi tu perfil como [Rol] y queria conectar. Trabajo con perfiles como el tuyo en sistematizar la prospeccion B2B. ?Tendrias 15 min esta semana para ver si aplica a tu caso?"},
+    {label:"DM Instagram nicho",channel:"instagram",text:"Hola [Nombre]! Vi tu contenido sobre [Tema] y me parecio muy interesante. Trabajo con [Nicho] en optimizar su sistema de clientes. ?Podriamos charlar 10 min?"},
+    {label:"Email frio directo",channel:"email",text:"Asunto: [Nombre], ?sistematizaste tu prospeccion?\n\nHola [Nombre],\n\nVi tu trabajo como [Rol] en [Empresa] y creo que hay una oportunidad concreta.\n\nAyudo a [Nicho] a conseguir [Resultado] sin depender del boca a boca.\n\n?Tendrias 15 min para una llamada esta semana?\n\nSaludos,\n[Tu nombre]"},
+    {label:"WhatsApp primer contacto",channel:"whatsapp",text:"Hola [Nombre]! Te escribo porque vi tu perfil y creo que puedo ayudarte con [Problema]. ?Tendrias 10 min para hablar? No te voy a hacer perder el tiempo."},
+  ],
+  seguimiento: [
+    {label:"Follow-up 48hs (LinkedIn)",channel:"linkedin",text:"Hola [Nombre], te escribi hace un par de dias. Entiendo que estas ocupado/a. Solo queria saber si tuviste chance de ver mi mensaje. ?Sigue siendo relevante para vos?"},
+    {label:"Follow-up calido",channel:"linkedin",text:"[Nombre], volvi a ver tu perfil y me parece que lo que haces con [Empresa] es exactamente el perfil con el que trabajamos mejor. ?Hablamos 15 min?"},
+    {label:"Ultimo intento",channel:"email",text:"Asunto: Ultimo mensaje, [Nombre]\n\nHola [Nombre],\n\nNo quiero ser insistente, pero antes de cerrar esto queria asegurarme de que viste mi propuesta.\n\nSi no es el momento, perfecto. Si te interesa, 15 min esta semana es todo lo que necesito.\n\nSaludos"},
+    {label:"Reactivar lead frio",channel:"linkedin",text:"Hola [Nombre]! Hace un tiempo hablamos. Vi que [Empresa] estuvo activa ultimamente y queria retomar la conversacion. ?Sigue siendo relevante para vos [Problema]?"},
+  ],
+  respuesta_positiva: [
+    {label:"Confirmar interes + agendar",channel:"linkedin",text:"Excelente [Nombre]! Me alegra que haya resonado. Te propongo una llamada de 20 min donde te muestro exactamente como funciona y vemos si aplica a tu caso. ?Como tienes [Dia/Dia+1]? Te mando el link de agenda."},
+    {label:"Mandar link de agenda",channel:"whatsapp",text:"Perfecto [Nombre]! Te comparto mi link para que elijas el horario que mejor te quede: [LINK_AGENDA]\n\nNos vemos en la call!"},
+    {label:"Confirmar call por email",channel:"email",text:"Asunto: Confirmacion de llamada - [Nombre]\n\nHola [Nombre]!\n\nConfirmo nuestra llamada para [Fecha] a las [Hora].\n\nLink: [LINK_VIDEOLLAMADA]\n\nAntes de la call, te pido que pienses en: ?cual es el mayor obstaculo hoy para conseguir mas clientes?\n\nHasta entonces!"},
+    {label:"Qualificar antes de call",channel:"linkedin",text:"Genial [Nombre]! Para aprovechar mejor la llamada, me ayudaria entender: ?actualmente como conseguis la mayoria de tus clientes y cuanto tiempo le dedicas a la prospeccion por semana?"},
+  ],
+  objecion: [
+    {label:"No tengo presupuesto",channel:"linkedin",text:"Entiendo [Nombre]. El presupuesto siempre es una consideracion. Precisamente por eso trabajo con un modelo donde el ROI se ve en la primera semana. ?Que presupuesto tendrias disponible si el resultado fuera seguro?"},
+    {label:"No es el momento",channel:"linkedin",text:"Totalmente valido [Nombre]. ?Cuando seria un buen momento? Que sepas que el sistema se implementa en 48hs. Si en [Mes+2] te parece mejor, puedo contactarte entonces. ?Te parece?"},
+    {label:"Ya tengo algo similar",channel:"linkedin",text:"Interesante, ?que estas usando actualmente? Pregunto porque la mayoria de mis clientes ya tenian algo antes de trabajar conmigo y la diferencia clave fue [Diferenciador]. Solo me llevaria 10 min mostrarte la diferencia concreta."},
+    {label:"Necesito pensarlo",channel:"linkedin",text:"Por supuesto [Nombre], es normal. ?Que informacion adicional necesitarias para tomar la decision? Puedo enviarte casos de resultados concretos o simplemente agendamos una llamada sin compromiso de 15 min."},
+    {label:"Mandar VSL/video",channel:"whatsapp",text:"[Nombre], prepare un video corto de 3 minutos que explica exactamente como funciona y que resultados puedes esperar. ?Te lo mando? No tiene desperdicio."},
+  ],
+  cierre: [
+    {label:"Propuesta de cierre",channel:"linkedin",text:"[Nombre], en base a lo que hablamos, prepare una propuesta especifica para tu caso. ?Cuando podemos revisar los detalles y arrancar?"},
+    {label:"Cierre por WhatsApp",channel:"whatsapp",text:"[Nombre]! Revisaste la propuesta? Tengo un lugar disponible esta semana para empezar. ?Arrancamos?"},
+    {label:"Urgencia genuina",channel:"linkedin",text:"[Nombre], queria avisarte que cierro mi cupo del mes el [Fecha]. Si queres asegurar el lugar, necesito confirmacion antes de ese dia. ?Seguimos?"},
+    {label:"Post-cierre bienvenida",channel:"email",text:"Asunto: Bienvenido/a [Nombre]!\n\nHola [Nombre]!\n\nMe alegra muchisimo que hayas decidido arrancar. En las proximas horas te mando los accesos y el proceso de onboarding.\n\nCualquier duda, escribime directamente.\n\nExito!"},
+  ],
+};
+
+// ── REDACCION IA v8 ───────────────────────────────────────────────────────────
+function RedaccionIA({leads}:{leads:Lead[]}) {
+  const [selectedLead,setSelectedLead] = useState<Lead|null>(null);
+  const [mode,setMode] = useState<"generar"|"plantillas">("plantillas");
+  const [templateCat,setTemplateCat] = useState<keyof typeof RESPONSE_TEMPLATES>("primer_contacto");
+  const [tone,setTone] = useState<"directo"|"empatico"|"vsl">("directo");
+  const [msg,setMsg] = useState("");
+  const [loading,setLoading] = useState(false);
+  const toast = useToast();
+
+  const CAT_LABELS: Record<keyof typeof RESPONSE_TEMPLATES,string> = {
+    primer_contacto:"Primer contacto",
+    seguimiento:"Seguimiento",
+    respuesta_positiva:"Respuesta positiva",
+    objecion:"Manejo de objeciones",
+    cierre:"Cierre",
+  };
+
+  const CHANNEL_ICONS: Record<string,string> = {
+    linkedin:"🔵",instagram:"📸",whatsapp:"💚",email:"✉",call:"📞"
+  };
+
+  function applyTemplate(text:string) {
+    let t = text;
+    if(selectedLead) {
+      t = t.replace(/\[Nombre\]/g,selectedLead.name.split(" ")[0])
+           .replace(/\[Rol\]/g,selectedLead.role||"profesional")
+           .replace(/\[Empresa\]/g,selectedLead.company||"tu empresa");
+    }
+    setMsg(t);
+  }
+
+  async function generate() {
+    if(!selectedLead) return;
+    setLoading(true);
+    await new Promise(r=>setTimeout(r,800));
+    const templates = {
+      directo:`Hola ${selectedLead.name.split(" ")[0]}, vi tu perfil como ${selectedLead.role} y queria conectar. Trabajo con perfiles como el tuyo optimizando el sistema de prospeccion B2B. ?Tendrias 15 min esta semana?`,
+      empatico:`Hola ${selectedLead.name.split(" ")[0]} ? Estuve analizando tu trabajo como ${selectedLead.role} y creo que hay una oportunidad concreta de mejorar tu flujo de clientes sin agregar mas horas de trabajo. ?Charlamos?`,
+      vsl:`${selectedLead.name.split(" ")[0]}, prepare un video de 3 min especifico para ${selectedLead.role}s que explica como cerrar mas sin prospectar manualmente. ?Te lo mando?`,
+    };
+    setMsg(templates[tone]);
+    setLoading(false);
+  }
+
+  return (
+    <div className="fade-up" style={{padding:"28px 32px",height:"100%",overflowY:"auto"}}>
+      <div style={{marginBottom:22}}>
+        <h1 className="display" style={{fontSize:36,fontWeight:300,letterSpacing:"-0.01em"}}>Redaccion IA</h1>
+        <p style={{fontSize:13,color:"var(--txt2)",marginTop:4}}>Genera mensajes personalizados o usa plantillas por tipo de respuesta</p>
+      </div>
+
+      {/* Mode toggle */}
+      <div className="tab-bar" style={{maxWidth:320,marginBottom:20}}>
+        <button className={`tab-btn ${mode==="plantillas"?"active":""}`} onClick={()=>setMode("plantillas")}>Plantillas por etapa</button>
+        <button className={`tab-btn ${mode==="generar"?"active":""}`} onClick={()=>setMode("generar")}>Generar con IA</button>
+      </div>
+
+      {/* Lead selector */}
+      <div style={{maxWidth:400,marginBottom:20}}>
+        <label style={{display:"block",fontSize:10,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:6,fontWeight:500}}>Lead (opcional para personalizar)</label>
+        <select className="inp" value={selectedLead?.id||""} onChange={e=>setSelectedLead(leads.find(l=>l.id===e.target.value)||null)}>
+          <option value="">Sin lead seleccionado</option>
+          {leads.map(l=><option key={l.id} value={l.id}>{l.name} - {l.role}</option>)}
+        </select>
+      </div>
+
+      {mode==="plantillas"&&(
+        <div style={{display:"grid",gridTemplateColumns:"220px 1fr",gap:20}}>
+          {/* Category list */}
+          <div>
+            <p style={{fontSize:10,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:10,fontWeight:500}}>Situacion</p>
+            <div style={{display:"flex",flexDirection:"column",gap:4}}>
+              {(Object.keys(CAT_LABELS) as Array<keyof typeof RESPONSE_TEMPLATES>).map(cat=>(
+                <button key={cat} onClick={()=>setTemplateCat(cat)}
+                  style={{padding:"9px 12px",borderRadius:8,border:`.5px solid ${templateCat===cat?"var(--gold-b)":"transparent"}`,background:templateCat===cat?"var(--gold-m)":"transparent",color:templateCat===cat?"var(--gold)":"var(--txt2)",fontSize:12,fontWeight:templateCat===cat?500:400,cursor:"pointer",textAlign:"left",fontFamily:"'DM Sans',sans-serif",transition:"all .15s"}}>
+                  {CAT_LABELS[cat]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Templates grid */}
+          <div>
+            <p style={{fontSize:10,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:10,fontWeight:500}}>Plantillas disponibles ({RESPONSE_TEMPLATES[templateCat].length})</p>
+            <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:16}}>
+              {RESPONSE_TEMPLATES[templateCat].map((t,i)=>(
+                <div key={i} className="glass" style={{padding:"14px 16px",cursor:"pointer",transition:"all .18s",border:".5px solid var(--border)"}}
+                  onClick={()=>applyTemplate(t.text)}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                    <p style={{fontWeight:500,fontSize:13}}>{t.label}</p>
+                    <span style={{fontSize:11,padding:"2px 8px",borderRadius:99,background:"var(--surface)",border:".5px solid var(--border)",color:"var(--txt2)"}}>
+                      {CHANNEL_ICONS[t.channel]} {t.channel}
+                    </span>
+                  </div>
+                  <p style={{fontSize:12,color:"var(--txt2)",lineHeight:1.6,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>
+                    {t.text.slice(0,120)}{t.text.length>120?"...":""}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {/* Message area */}
+            {msg&&(
+              <div>
+                <label style={{display:"block",fontSize:10,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:6,fontWeight:500}}>Mensaje listo para enviar</label>
+                <textarea className="inp" style={{minHeight:160,resize:"vertical",lineHeight:1.7,marginBottom:10}} value={msg} onChange={e=>setMsg(e.target.value)} />
+                <div style={{display:"flex",gap:8}}>
+                  <button className="btn btn-ghost" style={{flex:1,fontSize:12}} onClick={()=>{navigator.clipboard.writeText(msg);toast("Copiado","ok");}}>Copiar</button>
+                  <button className="btn btn-ghost" style={{flex:1,fontSize:12}} onClick={()=>setMsg("")}>Limpiar</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {mode==="generar"&&(
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,maxWidth:760}}>
+          <div>
+            <label style={{display:"block",fontSize:10,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:6,fontWeight:500}}>Tono</label>
+            <div style={{display:"flex",gap:8,marginBottom:16}}>
+              {(["directo","empatico","vsl"] as const).map(t=>(
+                <button key={t} className={`btn ${tone===t?"btn-primary":"btn-ghost"}`} style={{flex:1,fontSize:12,textTransform:"capitalize"}} onClick={()=>setTone(t)}>{t}</button>
+              ))}
+            </div>
+            <button className="btn btn-primary" style={{width:"100%"}} onClick={generate} disabled={!selectedLead||loading}>
+              {loading?"Generando...":"Generar mensaje"}
+            </button>
+            {!selectedLead&&<p style={{fontSize:11,color:"var(--txt3)",marginTop:8}}>Selecciona un lead para personalizar</p>}
+          </div>
+          <div>
+            <label style={{display:"block",fontSize:10,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:6,fontWeight:500}}>Mensaje generado</label>
+            <textarea className="inp" style={{minHeight:180,resize:"vertical",lineHeight:1.7}} value={msg} onChange={e=>setMsg(e.target.value)} placeholder="Aparece aqui..." />
+            {msg&&<button className="btn btn-ghost" style={{width:"100%",marginTop:8,fontSize:12}} onClick={()=>{navigator.clipboard.writeText(msg);toast("Copiado","ok");}}>Copiar</button>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── INBOUND PIPELINE ──────────────────────────────────────────────────────────
+const INBOUND_STAGES = ["Nuevo","Contactado","Calificado","Propuesta","Cerrado"];
+const OUTBOUND_STAGES = ["Nuevo","Contactado","Calificado","Propuesta","Cerrado"];
+const STAGE_COLORS: Record<string,string> = {
+  Nuevo:"#6366f1",Contactado:"#3b82f6",Calificado:"#f59e0b",Propuesta:"#10b981",Cerrado:"#C9A84C"
+};
+
+// ── PIPELINE v8 (Inbound + Outbound) ─────────────────────────────────────────
+function Pipeline({leads,onLeadClick,onAddLead}:{leads:Lead[];onLeadClick:(l:Lead)=>void;onAddLead:(l:Lead)=>void}) {
+  const [pipelineType,setPipelineType] = useState<"outbound"|"inbound">("outbound");
+  const [showAddInbound,setShowAddInbound] = useState(false);
+  const [inboundForm,setInboundForm] = useState({name:"",role:"",company:"",email:"",phone:"",source_detail:"",notes:""});
+  const toast = useToast();
+
+  const inboundLeads = leads.filter(l=>l.source==="inbound"||l.source==="ads"||l.source==="landing");
+  const outboundLeads = leads.filter(l=>l.source!=="inbound"&&l.source!=="ads"&&l.source!=="landing");
+  const viewLeads = pipelineType==="inbound"?inboundLeads:outboundLeads;
+  const stages = pipelineType==="inbound"?INBOUND_STAGES:OUTBOUND_STAGES;
+
+  function addInboundLead() {
+    if(!inboundForm.name) return;
+    const l:Lead = {
+      id:uid(),workspace_id:"",
+      name:inboundForm.name,role:inboundForm.role||"Lead Inbound",
+      company:inboundForm.company,email:inboundForm.email,phone:inboundForm.phone,
+      notes:inboundForm.notes,score:8,temp:"Hot",stage:"Nuevo",
+      source:"inbound",created_at:new Date().toISOString(),
+      next_action:"Contactar en menos de 5 min",
+    };
+    onAddLead(l);
+    toast(`${l.name} agregado como lead inbound Hot`,"ok");
+    setShowAddInbound(false);
+    setInboundForm({name:"",role:"",company:"",email:"",phone:"",source_detail:"",notes:""});
+  }
+
+  return (
+    <div className="fade-up" style={{padding:"28px 32px",height:"100%",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      {/* Header */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:20,flexShrink:0}}>
+        <div>
+          <h1 className="display" style={{fontSize:36,fontWeight:300,letterSpacing:"-0.01em"}}>CRM Pipeline</h1>
+          <p style={{fontSize:13,color:"var(--txt2)",marginTop:4}}>{viewLeads.length} leads en seguimiento</p>
+        </div>
+        <div style={{display:"flex",gap:10,alignItems:"center"}}>
+          {pipelineType==="inbound"&&(
+            <button className="btn btn-primary" style={{fontSize:12}} onClick={()=>setShowAddInbound(true)}>
+              + Lead inbound
+            </button>
+          )}
+          <div className="tab-bar">
+            <button className={`tab-btn ${pipelineType==="outbound"?"active":""}`} onClick={()=>setPipelineType("outbound")}>
+              Outbound ({outboundLeads.length})
+            </button>
+            <button className={`tab-btn ${pipelineType==="inbound"?"active":""}`} onClick={()=>setPipelineType("inbound")}>
+              Inbound / Ads ({inboundLeads.length})
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Info banner for inbound */}
+      {pipelineType==="inbound"&&(
+        <div className="glass" style={{padding:"10px 16px",marginBottom:16,border:".5px solid rgba(201,168,76,.25)",display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
+          <span style={{fontSize:18}}>⚡</span>
+          <div>
+            <p style={{fontSize:12,fontWeight:500,color:"var(--gold)"}}>Pipeline de leads inbound</p>
+            <p style={{fontSize:11,color:"var(--txt2)"}}>Leads que llegaron solos: anuncios Meta/Google, landing pages, referidos. Temperatura Hot por defecto. Contactar en menos de 5 min.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Kanban */}
+      <div style={{flex:1,overflowX:"auto",paddingBottom:16}}>
+        <div style={{display:"flex",gap:16,minWidth:"max-content",height:"100%"}}>
+          {stages.map(stage=>{
+            const col = viewLeads.filter(l=>l.stage===stage);
+            return (
+              <div key={stage} style={{width:240,display:"flex",flexDirection:"column"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexShrink:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{width:8,height:8,borderRadius:"50%",background:STAGE_COLORS[stage],display:"inline-block"}} />
+                    <span style={{fontSize:11,fontWeight:600,color:"var(--txt2)",letterSpacing:".04em",textTransform:"uppercase"}}>{stage}</span>
+                  </div>
+                  <span className="pill pill-muted" style={{fontSize:10}}>{col.length}</span>
+                </div>
+                <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",gap:10}}>
+                  {col.map(lead=>(
+                    <div key={lead.id} className="glass lead-card" onClick={()=>onLeadClick(lead)} style={{padding:"14px 16px",flexShrink:0}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+                        <div>
+                          <p style={{fontWeight:500,fontSize:13,lineHeight:1.3}}>{lead.name}</p>
+                          <p style={{fontSize:11,color:"var(--txt2)",marginTop:2}}>{lead.role}{lead.company?` · ${lead.company}`:""}</p>
+                        </div>
+                        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+                          <span className="mono" style={{fontSize:16,fontWeight:300,color:scoreColor(lead.score)}}>{lead.score}</span>
+                          {lead.source==="inbound"&&<span style={{fontSize:9,color:"var(--gold)",background:"var(--gold-m)",padding:"1px 6px",borderRadius:99,border:".5px solid var(--gold-b)"}}>Inbound</span>}
+                        </div>
+                      </div>
+                      <ScoreBar score={lead.score} />
+                      <div style={{display:"flex",gap:5,marginTop:8,flexWrap:"wrap"}}>
+                        <span className="pill" style={{background:`${tempColor(lead.temp)}18`,color:tempColor(lead.temp),border:`.5px solid ${tempColor(lead.temp)}35`,fontSize:9}}>
+                          {lead.temp==="Hot"?"🔥":lead.temp==="Warm"?"◈":"❄"} {lead.temp}
+                        </span>
+                        {lead.next_action&&<span className="pill pill-muted" style={{fontSize:9}}>→ {lead.next_action}</span>}
+                      </div>
+                      {/* Quick contact links */}
+                      <div style={{display:"flex",gap:6,marginTop:8}}>
+                        {lead.linkedin_url&&<a href={lead.linkedin_url} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:10,color:"#60a5fa",textDecoration:"none"}}>🔵</a>}
+                        {lead.phone&&<a href={`https://wa.me/${lead.phone.replace(/\D/g,"")}`} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:10,color:"#25D366",textDecoration:"none"}}>💚</a>}
+                        {lead.email&&<a href={`mailto:${lead.email}`} onClick={e=>e.stopPropagation()} style={{fontSize:10,color:"#10b981",textDecoration:"none"}}>✉</a>}
+                      </div>
+                    </div>
+                  ))}
+                  {col.length===0&&(
+                    <div style={{border:".5px dashed var(--border)",borderRadius:"var(--radius)",padding:"24px 16px",textAlign:"center"}}>
+                      <p style={{fontSize:11,color:"var(--txt3)"}}>Sin leads</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Add inbound modal */}
+      {showAddInbound&&(
+        <div style={{position:"fixed",inset:0,zIndex:999,background:"rgba(0,0,0,.72)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={()=>setShowAddInbound(false)}>
+          <div className="glass" style={{maxWidth:520,width:"100%",padding:28,border:".5px solid var(--gold-b)"}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+              <div>
+                <h2 className="display" style={{fontSize:22,fontWeight:400}}>Nuevo lead inbound</h2>
+                <p style={{fontSize:12,color:"var(--gold)",marginTop:2}}>⚡ Se crea como Hot - contactar en 5 min</p>
+              </div>
+              <button onClick={()=>setShowAddInbound(false)} className="btn btn-ghost" style={{padding:"4px 10px",fontSize:18}}>×</button>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              {[{l:"Nombre *",f:"name"},{l:"Cargo/Rol",f:"role"},{l:"Empresa",f:"company"},{l:"Email",f:"email"},{l:"Telefono",f:"phone"},{l:"Fuente",f:"source_detail"}].map(x=>(
+                <div key={x.f}>
+                  <label style={{display:"block",fontSize:10,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:5,fontWeight:500}}>{x.l}</label>
+                  <input className="inp"
+                    value={(inboundForm as any)[x.f]}
+                    onChange={e=>setInboundForm(p=>({...p,[x.f]:e.target.value}))}
+                    placeholder={x.f==="source_detail"?"Meta Ads, Google, Landing...":""}
+                  />
+                </div>
+              ))}
+            </div>
+            <div style={{marginTop:12}}>
+              <label style={{display:"block",fontSize:10,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:5,fontWeight:500}}>Notas del lead</label>
+              <textarea className="inp" style={{minHeight:60,resize:"vertical"}} value={inboundForm.notes} onChange={e=>setInboundForm(p=>({...p,notes:e.target.value}))} placeholder="Que producto consulto, que dijo en el formulario..." />
+            </div>
+            <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:16}}>
+              <button className="btn btn-ghost" onClick={()=>setShowAddInbound(false)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={addInboundLead} disabled={!inboundForm.name}>⚡ Agregar lead Hot</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── INBOX v8 (con templates de respuesta rapida) ──────────────────────────────
+function Inbox({leads}:{leads:Lead[]}) {
+  const [sel,setSel] = useState<Lead|null>(null);
+  const [resp,setResp] = useState("");
+  const [analysis,setAnalysis] = useState<{type:string;color:string;action:string;template:string}|null>(null);
+  const [loading,setLoading] = useState(false);
+  const [quickReply,setQuickReply] = useState("");
+  const toast = useToast();
+
+  const ANALYSIS_TYPES = [
+    {keywords:["si","dale","interesa","perfecto","genial","bueno","claro","adelante","cuando"],type:"POSITIVO",color:"#10b981",action:"Agendar call en las proximas 24h. Score: +1",template:"Excelente [Nombre]! Me alegra que haya resonado. Te propongo una llamada de 20 min. ?Como tienes manana o pasado? Te mando el link."},
+    {keywords:["cuanto","precio","costo","valor","inversion","cobras"],type:"CONSULTA PRECIO",color:"#C9A84C",action:"Calificar antes de dar precio. Preguntar por presupuesto actual.",template:"Buena pregunta [Nombre]. Antes de darte numeros, ?me contas un poco mas sobre tu situacion actual? Asi te doy algo mas ajustado a tu caso."},
+    {keywords:["no","ahora no","despues","mas adelante","no me interesa","gracias pero"],type:"NEGATIVO / NO AHORA",color:"#f87171",action:"Registrar como frio. Programar follow-up en 30 dias.",template:"Perfecto [Nombre], lo entiendo totalmente. ?Te parece si te contacto en [Fecha+30d] cuando sea mejor momento?"},
+    {keywords:["presupuesto","plata","caro","dinero","cuesta mucho"],type:"OBJECION PRECIO",color:"#f59e0b",action:"Usar script de objecion de precio. Enfocarse en ROI.",template:"Entiendo [Nombre]. El tema presupuesto siempre es importante. ?Que inversion tendrias disponible si el resultado fuera seguro?"},
+    {keywords:["pensar","consultar","ver","hablar","tiempo"],type:"NECESITA PENSAR",color:"#818cf8",action:"Dar informacion adicional. Proponer call sin compromiso.",template:"Por supuesto [Nombre]! Tomatelo con calma. Para ayudarte a decidir, ?que informacion te seria mas util tener?"},
+  ];
+
+  async function analyze() {
+    if(!resp) return;
+    setLoading(true);
+    await new Promise(r=>setTimeout(r,700));
+    const lower = resp.toLowerCase();
+    const match = ANALYSIS_TYPES.find(t=>t.keywords.some(k=>lower.includes(k)));
+    const result = match || {type:"NEUTRAL",color:"#64748b",action:"Seguir la conversacion. Hacer pregunta abierta.",template:"Gracias por responder [Nombre]. Para entender mejor, ?podes contarme un poco mas sobre [Situacion]?"};
+    const finalTemplate = sel ? result.template.replace(/\[Nombre\]/g,sel.name.split(" ")[0]) : result.template;
+    setAnalysis({...result,template:finalTemplate});
+    setQuickReply(finalTemplate);
+    setLoading(false);
+  }
+
+  return (
+    <div className="fade-up" style={{padding:"28px 32px",height:"100%",overflowY:"auto"}}>
+      <div style={{marginBottom:22}}>
+        <h1 className="display" style={{fontSize:36,fontWeight:300,letterSpacing:"-0.01em"}}>Inbox</h1>
+        <p style={{fontSize:13,color:"var(--txt2)",marginTop:4}}>Analiza respuestas y obtene el script de reply inmediato</p>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"200px 1fr",gap:20,maxWidth:900}}>
+        {/* Lead list */}
+        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          <p style={{fontSize:10,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:4,fontWeight:500}}>Lead que respondio</p>
+          {leads.filter(l=>l.stage==="Contactado"||l.stage==="Calificado").map(l=>(
+            <div key={l.id} className={`glass ${sel?.id===l.id?"glass-gold":""}`} style={{padding:"10px 12px",cursor:"pointer",transition:"all .15s"}} onClick={()=>setSel(l)}>
+              <p style={{fontWeight:500,fontSize:12}}>{l.name}</p>
+              <p style={{fontSize:10,color:"var(--txt2)",marginTop:1}}>{l.role}</p>
+              <div style={{display:"flex",gap:4,marginTop:5}}>
+                {l.linkedin_url&&<a href={l.linkedin_url} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:10,color:"#60a5fa",textDecoration:"none"}}>🔵</a>}
+                {l.phone&&<a href={`https://wa.me/${l.phone.replace(/\D/g,"")}`} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:10,color:"#25D366",textDecoration:"none"}}>💚</a>}
+              </div>
+            </div>
+          ))}
+          {leads.filter(l=>l.stage==="Contactado"||l.stage==="Calificado").length===0&&(
+            <p style={{fontSize:11,color:"var(--txt3)",fontStyle:"italic"}}>Mueve leads a "Contactado" para verlos aca</p>
+          )}
+        </div>
+
+        {/* Analyzer */}
+        <div>
+          <div style={{marginBottom:14}}>
+            <label style={{display:"block",fontSize:10,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:6,fontWeight:500}}>Pegar respuesta recibida</label>
+            <textarea className="inp" style={{minHeight:120,resize:"vertical",lineHeight:1.6}} value={resp} onChange={e=>setResp(e.target.value)} placeholder="Copia y pega exactamente lo que te respondio el lead desde LinkedIn, Instagram, WhatsApp o Email..." />
+          </div>
+          <button className="btn btn-primary" onClick={analyze} disabled={!resp||loading} style={{marginBottom:16}}>
+            {loading?"Analizando...":"Analizar respuesta"}
+          </button>
+
+          {analysis&&(
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              {/* Analysis result */}
+              <div className="glass" style={{padding:"16px 18px",border:`.5px solid ${analysis.color}40`}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                  <span style={{padding:"3px 12px",borderRadius:99,background:`${analysis.color}18`,color:analysis.color,fontSize:12,fontWeight:600,border:`.5px solid ${analysis.color}35`}}>
+                    {analysis.type}
+                  </span>
+                </div>
+                <p style={{fontSize:13,color:"var(--txt)",lineHeight:1.7}}>
+                  <strong>Accion recomendada:</strong> {analysis.action}
+                </p>
+              </div>
+
+              {/* Quick reply */}
+              <div>
+                <label style={{display:"block",fontSize:10,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:6,fontWeight:500}}>
+                  Script de respuesta recomendado
+                </label>
+                <textarea className="inp" style={{minHeight:120,resize:"vertical",lineHeight:1.7}} value={quickReply} onChange={e=>setQuickReply(e.target.value)} />
+                <div style={{display:"flex",gap:8,marginTop:8}}>
+                  <button className="btn btn-ghost" style={{flex:1,fontSize:12}} onClick={()=>{navigator.clipboard.writeText(quickReply);toast("Respuesta copiada","ok");}}>
+                    Copiar respuesta
+                  </button>
+                  {sel?.linkedin_url&&<a href={sel.linkedin_url} target="_blank" rel="noopener noreferrer" className="btn btn-ghost" style={{flex:1,fontSize:12,textDecoration:"none",textAlign:"center"}}>
+                    Abrir LinkedIn 🔵
+                  </a>}
+                  {sel?.phone&&<a href={`https://wa.me/${sel.phone.replace(/\D/g,"")}?text=${encodeURIComponent(quickReply)}`} target="_blank" rel="noopener noreferrer" className="btn btn-ghost" style={{flex:1,fontSize:12,textDecoration:"none",textAlign:"center"}}>
+                    Abrir WhatsApp 💚
+                  </a>}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── DASHBOARD v8 (con comparativa) ───────────────────────────────────────────
+function Dashboard({leads}:{leads:Lead[]}) {
+  const warm=leads.filter(l=>l.temp!=="Frío");
+  const hot=leads.filter(l=>l.temp==="Hot");
+  const today=leads.filter(l=>l.next_action);
+  const inbound=leads.filter(l=>l.source==="inbound"||l.source==="ads");
+  const avg=leads.length?(leads.reduce((a,b)=>a+b.score,0)/leads.length).toFixed(1):"0";
+  const closed=leads.filter(l=>l.stage==="Cerrado").length;
+
+  return (
+    <div className="fade-up" style={{padding:"28px 32px",overflowY:"auto",height:"100%"}}>
+      <div style={{marginBottom:24}}>
+        <h1 className="display" style={{fontSize:36,fontWeight:300,letterSpacing:"-0.01em",lineHeight:1.1}}>Dashboard</h1>
+        <p style={{fontSize:13,color:"var(--txt2)",marginTop:6}}>{new Date().toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"})}</p>
+      </div>
+
+      {/* Stats */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:14,marginBottom:28}}>
+        <StatCard label="Leads warm" value={`${warm.length}`} sub={`${hot.length} hot activos`} accent="#C9A84C" />
+        <StatCard label="Score promedio" value={avg} sub="BANT estimado" accent="#10b981" />
+        <StatCard label="Accion hoy" value={`${today.length}`} sub="leads pendientes" accent="#6366f1" />
+        <StatCard label="Cierres" value={`${closed}`} sub={`de ${leads.length} totales`} accent="#f59e0b" />
+        {inbound.length>0&&<StatCard label="Inbound / Ads" value={`${inbound.length}`} sub="leads que llegaron solos" accent="#f472b6" />}
+      </div>
+
+      {/* Inbound alert */}
+      {inbound.filter(l=>l.stage==="Nuevo").length>0&&(
+        <div className="glass" style={{padding:"14px 18px",marginBottom:20,border:".5px solid rgba(244,114,182,.3)",display:"flex",alignItems:"center",gap:12}}>
+          <span style={{fontSize:20}}>⚡</span>
+          <div>
+            <p style={{fontWeight:500,fontSize:13,color:"#f472b6"}}>{inbound.filter(l=>l.stage==="Nuevo").length} leads inbound sin contactar</p>
+            <p style={{fontSize:12,color:"var(--txt2)"}}>Llegaron de anuncios o landing. Contactalos en menos de 5 minutos para maximizar conversion.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Mision del dia */}
+      <div style={{marginBottom:24}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <h2 style={{fontSize:11,fontWeight:600,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)"}}>Mision del dia</h2>
+          <span className="pill pill-gold">{today.length} pendientes</span>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:10}}>
+          {today.slice(0,4).map(lead=>(
+            <div key={lead.id} className="glass" style={{padding:"14px 16px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                <p style={{fontWeight:500,fontSize:13}}>{lead.name}</p>
+                <span className="pill" style={{background:`${tempColor(lead.temp)}18`,color:tempColor(lead.temp),border:`.5px solid ${tempColor(lead.temp)}35`,fontSize:9}}>{lead.temp}</span>
+              </div>
+              <p style={{fontSize:11,color:"var(--txt2)",marginBottom:8}}>{lead.role}</p>
+              <ScoreBar score={lead.score} />
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8}}>
+                <span style={{fontSize:11,color:"var(--txt3)"}}>{lead.next_action}</span>
+                <span className="mono" style={{fontSize:15,color:scoreColor(lead.score)}}>{lead.score}/10</span>
+              </div>
+              <div style={{display:"flex",gap:6,marginTop:8}}>
+                {lead.linkedin_url&&<a href={lead.linkedin_url} target="_blank" rel="noopener noreferrer" style={{fontSize:10,color:"#60a5fa",textDecoration:"none"}}>🔵 LI</a>}
+                {lead.phone&&<a href={`https://wa.me/${lead.phone.replace(/\D/g,"")}`} target="_blank" rel="noopener noreferrer" style={{fontSize:10,color:"#25D366",textDecoration:"none"}}>💚 WA</a>}
+                {lead.email&&<a href={`mailto:${lead.email}`} style={{fontSize:10,color:"#10b981",textDecoration:"none"}}>✉</a>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Flujo */}
+      <div className="glass" style={{padding:"16px 20px"}}>
+        <p style={{fontSize:10,letterSpacing:".08em",textTransform:"uppercase",color:"var(--txt2)",fontWeight:500,marginBottom:12}}>Flujo de trabajo</p>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          {["Sesion del dia","Prospector","Redaccion IA","Inbox","Qualify Gate","Pipeline"].map((s,i)=>(
+            <span key={i} className="btn btn-ghost" style={{fontSize:11,padding:"5px 12px"}}>{s}</span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LeadDetail({lead,onClose,onUpdate,activities,onAddActivity}:{
+  lead:Lead;onClose:()=>void;onUpdate:(l:Lead)=>void;
+  activities:Activity[];onAddActivity:(a:Activity)=>void;
+}) {
+  const [l,setL] = useState(lead);
+  const [tab,setTab] = useState<"info"|"send"|"activity">("info");
+  const toast = useToast();
+
+  function save() { onUpdate(l); toast("Lead actualizado","ok"); onClose(); }
+
+  function handleSent(a:Activity) {
+    const updated = {...l,stage:l.stage==="Nuevo"?"Contactado":l.stage,last_action:`DM via ${a.channel}`};
+    setL(updated);
+    onUpdate(updated);
+    onAddActivity({...a,lead_id:l.id});
+  }
+
+  return (
+    <div style={{position:"fixed",inset:0,zIndex:999,background:"rgba(0,0,0,.72)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={onClose}>
+      <div className="glass" style={{maxWidth:620,width:"100%",maxHeight:"90vh",overflowY:"auto",border:".5px solid var(--gold-b)"}} onClick={e=>e.stopPropagation()}>
+        {/* Header */}
+        <div style={{padding:"20px 24px 0",display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+          <div>
+            <h2 className="display" style={{fontSize:22,fontWeight:400}}>{l.name}</h2>
+            <p style={{fontSize:13,color:"var(--txt2)",marginTop:2}}>{l.role}{l.company?` · ${l.company}`:""}</p>
+          </div>
+          <button onClick={onClose} className="btn btn-ghost" style={{padding:"4px 10px",fontSize:18}}>×</button>
+        </div>
+
+        {/* Quick links */}
+        <div style={{padding:"10px 24px 0",display:"flex",gap:8,flexWrap:"wrap"}}>
+          {l.linkedin_url&&<a href={l.linkedin_url} target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:"#60a5fa",textDecoration:"none",padding:"3px 10px",borderRadius:99,background:"rgba(96,165,250,.1)",border:".5px solid rgba(96,165,250,.25)"}}>🔵 LinkedIn</a>}
+          {l.instagram_url&&<a href={l.instagram_url} target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:"#f472b6",textDecoration:"none",padding:"3px 10px",borderRadius:99,background:"rgba(244,114,182,.1)",border:".5px solid rgba(244,114,182,.25)"}}>📸 Instagram</a>}
+          {l.phone&&<a href={`https://wa.me/${l.phone.replace(/\D/g,"")}`} target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:"#25D366",textDecoration:"none",padding:"3px 10px",borderRadius:99,background:"rgba(37,211,102,.1)",border:".5px solid rgba(37,211,102,.25)"}}>💚 WhatsApp</a>}
+          {l.email&&<a href={`mailto:${l.email}`} style={{fontSize:11,color:"#10b981",textDecoration:"none",padding:"3px 10px",borderRadius:99,background:"rgba(16,185,129,.1)",border:".5px solid rgba(16,185,129,.25)"}}>✉ Email</a>}
+        </div>
+
+        {/* Tabs */}
+        <div style={{padding:"14px 24px 0"}}>
+          <div className="tab-bar">
+            {[{id:"info",l:"Informacion"},{id:"send",l:"Enviar mensaje"},{id:"activity",l:`Actividad (${activities.length})`}].map(t=>(
+              <button key={t.id} className={`tab-btn ${tab===t.id?"active":""}`} onClick={()=>setTab(t.id as any)}>{t.l}</button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{padding:"16px 24px 24px"}}>
+          {tab==="info"&&(
+            <>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+                {[
+                  {label:"Nombre",field:"name"},{label:"Rol",field:"role"},
+                  {label:"Empresa",field:"company"},{label:"Email",field:"email"},
+                  {label:"Telefono",field:"phone"},{label:"LinkedIn URL",field:"linkedin_url"},
+                ].map(f=>(
+                  <div key={f.field}>
+                    <label style={{display:"block",fontSize:10,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:5,fontWeight:500}}>{f.label}</label>
+                    <input className="inp" value={(l as any)[f.field]||""} onChange={e=>setL(p=>({...p,[f.field]:e.target.value}))} />
+                  </div>
+                ))}
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:12}}>
+                <div>
+                  <label style={{display:"block",fontSize:10,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:5,fontWeight:500}}>Temperatura</label>
+                  <select className="inp" value={l.temp} onChange={e=>setL(p=>({...p,temp:e.target.value as any}))}>
+                    <option>Warm</option><option>Hot</option><option>Frio</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{display:"block",fontSize:10,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:5,fontWeight:500}}>Etapa</label>
+                  <select className="inp" value={l.stage} onChange={e=>setL(p=>({...p,stage:e.target.value}))}>
+                    {["Nuevo","Contactado","Calificado","Propuesta","Cerrado"].map(s=><option key={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{display:"block",fontSize:10,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:5,fontWeight:500}}>Score</label>
+                  <input type="number" className="inp" min={1} max={10} value={l.score} onChange={e=>setL(p=>({...p,score:+e.target.value}))} />
+                </div>
+              </div>
+              <div style={{marginBottom:12}}>
+                <label style={{display:"block",fontSize:10,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:5,fontWeight:500}}>Proxima accion</label>
+                <input className="inp" value={l.next_action||""} onChange={e=>setL(p=>({...p,next_action:e.target.value}))} placeholder="Ej: Call manana 10am" />
+              </div>
+              <div style={{marginBottom:16}}>
+                <label style={{display:"block",fontSize:10,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:5,fontWeight:500}}>Notas</label>
+                <textarea className="inp" style={{minHeight:70,resize:"vertical"}} value={l.notes||""} onChange={e=>setL(p=>({...p,notes:e.target.value}))} />
+              </div>
+              <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+                <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+                <button className="btn btn-primary" onClick={save}>Guardar cambios</button>
+              </div>
+            </>
+          )}
+          {tab==="send"&&<SendMessagePanel lead={l} onSent={handleSent} />}
+          {tab==="activity"&&<ActivityTimeline activities={activities} onAdd={a=>onAddActivity({...a,lead_id:l.id})} />}
+        </div>
+      </div>
+    </div>
   );
 }
 
 function AddLeadModal({open,onClose,onAdd}:{open:boolean;onClose:()=>void;onAdd:(l:Lead)=>void}) {
-  const [f,setF]=useState({name:"",role:"",company:"",score:7,temp:"Warm" as Lead["temp"],stage:"Nuevo",next_action:""});
+  const [f,setF]=useState({name:"",role:"",company:"",email:"",phone:"",linkedin_url:"",score:7,temp:"Warm" as Lead["temp"],stage:"Nuevo",next_action:""});
   const toast=useToast();
-  function sub(){if(!f.name||!f.role)return;onAdd({...f,id:uid(),workspace_id:"",source:"manual",created_at:new Date().toISOString()});toast(`${f.name} agregado`,"ok");onClose();setF({name:"",role:"",company:"",score:7,temp:"Warm",stage:"Nuevo",next_action:""});}
+  function sub(){if(!f.name||!f.role)return;onAdd({...f,id:uid(),workspace_id:"",source:"manual",created_at:new Date().toISOString()});toast(`${f.name} agregado`,"ok");onClose();setF({name:"",role:"",company:"",email:"",phone:"",linkedin_url:"",score:7,temp:"Warm",stage:"Nuevo",next_action:""});}
+  if(!open)return null;
   return (
-    <Modal open={open} onClose={onClose} title="Nuevo lead">
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-        <Field label="Nombre *"><input className="inp" value={f.name} onChange={e=>setF(p=>({...p,name:e.target.value}))} placeholder="Ej: María García" /></Field>
-        <Field label="Rol *"><input className="inp" value={f.role} onChange={e=>setF(p=>({...p,role:e.target.value}))} placeholder="CEO, Founder..." /></Field>
-        <Field label="Empresa"><input className="inp" value={f.company} onChange={e=>setF(p=>({...p,company:e.target.value}))} /></Field>
-        <Field label="Temperatura"><select className="inp" value={f.temp} onChange={e=>setF(p=>({...p,temp:e.target.value as Lead["temp"]}))}><option>Warm</option><option>Hot</option><option>Frío</option></select></Field>
-        <Field label="Score"><input className="inp" type="number" min={1} max={10} value={f.score} onChange={e=>setF(p=>({...p,score:+e.target.value}))} /></Field>
-        <Field label="Etapa"><select className="inp" value={f.stage} onChange={e=>setF(p=>({...p,stage:e.target.value}))}>{STAGES.map(s=><option key={s}>{s}</option>)}</select></Field>
+    <div style={{position:"fixed",inset:0,zIndex:999,background:"rgba(0,0,0,.72)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={onClose}>
+      <div className="glass" style={{maxWidth:560,width:"100%",padding:28,border:".5px solid var(--gold-b)"}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+          <h2 className="display" style={{fontSize:22,fontWeight:400}}>Nuevo lead</h2>
+          <button onClick={onClose} className="btn btn-ghost" style={{padding:"4px 10px",fontSize:18}}>×</button>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          {[{l:"Nombre *",f:"name",p:"Maria Garcia"},{l:"Rol *",f:"role",p:"CEO, Founder..."},{l:"Empresa",f:"company",p:""},{l:"Email",f:"email",p:""},{l:"Telefono",f:"phone",p:"+54 9 11..."},{l:"LinkedIn URL",f:"linkedin_url",p:"https://linkedin.com/in/..."}].map(x=>(
+            <div key={x.f}>
+              <label style={{display:"block",fontSize:10,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:5,fontWeight:500}}>{x.l}</label>
+              <input className="inp" value={(f as any)[x.f]} onChange={e=>setF(p=>({...p,[x.f]:e.target.value}))} placeholder={x.p} />
+            </div>
+          ))}
+          <div>
+            <label style={{display:"block",fontSize:10,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:5,fontWeight:500}}>Temperatura</label>
+            <select className="inp" value={f.temp} onChange={e=>setF(p=>({...p,temp:e.target.value as any}))}><option>Warm</option><option>Hot</option><option>Frio</option></select>
+          </div>
+          <div>
+            <label style={{display:"block",fontSize:10,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:5,fontWeight:500}}>Score</label>
+            <input type="number" className="inp" min={1} max={10} value={f.score} onChange={e=>setF(p=>({...p,score:+e.target.value}))} />
+          </div>
+        </div>
+        <div style={{marginTop:12}}>
+          <label style={{display:"block",fontSize:10,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:5,fontWeight:500}}>Proxima accion</label>
+          <input className="inp" value={f.next_action} onChange={e=>setF(p=>({...p,next_action:e.target.value}))} placeholder="Ej: Enviar DM LinkedIn" />
+        </div>
+        <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:16}}>
+          <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-primary" onClick={sub} disabled={!f.name||!f.role}>Agregar lead</button>
+        </div>
       </div>
-      <Field label="Próxima acción"><input className="inp" value={f.next_action} onChange={e=>setF(p=>({...p,next_action:e.target.value}))} placeholder="Ej: Enviar DM LinkedIn" /></Field>
-      <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:16}}>
-        <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-        <button className="btn btn-primary" onClick={sub} disabled={!f.name||!f.role}>Agregar lead</button>
-      </div>
-    </Modal>
+    </div>
   );
 }
 
-// ── AUTH SCREEN ───────────────────────────────────────────────────────────────
+
 function AuthScreen({onAuth}:{onAuth:(u:User,m:Member,w:Workspace)=>void}) {
   const [mode,setMode]=useState<"login"|"register">("login");
   const [email,setEmail]=useState("");const [pass,setPass]=useState("");
@@ -1446,55 +2414,65 @@ function AuthScreen({onAuth}:{onAuth:(u:User,m:Member,w:Workspace)=>void}) {
 }
 
 // ── SIDEBAR ───────────────────────────────────────────────────────────────────
-function Sidebar({active,onChange,appUser,leadsCount,workspaces,onWorkspaceChange}:{
-  active:string;onChange:(id:string)=>void;appUser:AppUser;leadsCount:number;
-  workspaces:Workspace[];onWorkspaceChange:(w:Workspace)=>void;
+
+const NAV_V8 = [
+  {id:"session",   label:"Sesion del dia",  icon:"◈"},
+  {id:"dashboard", label:"Dashboard",        icon:"⌘"},
+  {id:"pipeline",  label:"Pipeline",         icon:"◉"},
+  {id:"inbound",   label:"Inbound / Ads",    icon:"⚡"},
+  {id:"closer",    label:"Vista Closer",     icon:"◎"},
+  {id:"buscador",  label:"Prospector",       icon:"✦"},
+  {id:"import",    label:"Importar CSV",     icon:"▲"},
+  {id:"generar",   label:"Redaccion IA",     icon:"✉"},
+  {id:"email",     label:"Email Marketing",  icon:"≋"},
+  {id:"cadence",   label:"Cadencias",        icon:"▣"},
+  {id:"inbox",     label:"Inbox",            icon:"◆"},
+  {id:"qualify",   label:"Qualify Gate",     icon:"◐"},
+  {id:"metrics",   label:"Metricas",         icon:"⊞"},
+  {id:"knowledge", label:"Conocimiento",     icon:"◻"},
+  {id:"team",      label:"Equipo",           icon:"◈", adminOnly:true},
+  {id:"settings",  label:"API Keys",         icon:"⚙", adminOnly:true},
+] as const;
+
+function Sidebar({active,onChange,appUser,leadsCount,inboundCount}:{
+  active:string;onChange:(id:string)=>void;appUser:AppUser;leadsCount:number;inboundCount:number;
 }) {
   const isAdmin=appUser.member.role==="admin";
-  const navItems=NAV.filter(n=>!("adminOnly" in n&&n.adminOnly)||isAdmin);
+  const navItems=NAV_V8.filter(n=>!("adminOnly" in n&&n.adminOnly)||isAdmin);
   return (
     <aside style={{width:"var(--sidebar-w)",minHeight:"100vh",flexShrink:0,background:"rgba(6,8,14,0.97)",borderRight:".5px solid var(--border)",display:"flex",flexDirection:"column",backdropFilter:"blur(20px)"}}>
-      <div style={{padding:"24px 20px 16px",borderBottom:".5px solid var(--border)"}}>
+      <div style={{padding:"20px 20px 14px",borderBottom:".5px solid var(--border)"}}>
         <p className="display" style={{fontSize:22,fontWeight:300,letterSpacing:"-0.01em",lineHeight:1}}>Closer<span style={{color:"var(--gold)"}}>AI</span></p>
-        <p style={{fontSize:10,color:"var(--txt3)",marginTop:4,letterSpacing:".1em",textTransform:"uppercase"}}>v4 · B2B Engine</p>
+        <p style={{fontSize:10,color:"var(--txt3)",marginTop:4,letterSpacing:".1em",textTransform:"uppercase"}}>v8 - B2B Engine</p>
       </div>
-
-      {/* Workspace switcher */}
-      <div style={{padding:"12px 14px",borderBottom:".5px solid var(--border)"}}>
-        <p style={{fontSize:9,letterSpacing:".08em",textTransform:"uppercase",color:"var(--txt3)",marginBottom:6,fontWeight:500}}>Workspace</p>
-        {workspaces.length>1?(
-          <select className="inp" style={{padding:"6px 10px",fontSize:12}} value={appUser.workspace.id} onChange={e=>{const w=workspaces.find(x=>x.id===e.target.value);if(w)onWorkspaceChange(w);}}>
-            {workspaces.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}
-          </select>
-        ):(
-          <p style={{fontSize:12,fontWeight:500,color:"var(--txt)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{appUser.workspace.name}</p>
-        )}
+      <div style={{padding:"10px 14px",borderBottom:".5px solid var(--border)"}}>
+        <p style={{fontSize:9,letterSpacing:".08em",textTransform:"uppercase",color:"var(--txt3)",marginBottom:4,fontWeight:500}}>Workspace</p>
+        <p style={{fontSize:12,fontWeight:500,color:"var(--txt)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{appUser.workspace.name}</p>
       </div>
-
-      {/* User */}
-      <div style={{padding:"12px 14px",borderBottom:".5px solid var(--border)",display:"flex",alignItems:"center",gap:10}}>
-        <div style={{width:30,height:30,borderRadius:"50%",background:isAdmin?"var(--gold-m)":"var(--surface)",border:`.5px solid ${isAdmin?"var(--gold-b)":"var(--border)"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:600,color:isAdmin?"var(--gold)":"var(--txt2)",flexShrink:0}}>
+      <div style={{padding:"10px 14px",borderBottom:".5px solid var(--border)",display:"flex",alignItems:"center",gap:10}}>
+        <div style={{width:28,height:28,borderRadius:"50%",background:isAdmin?"var(--gold-m)":"var(--surface)",border:`.5px solid ${isAdmin?"var(--gold-b)":"var(--border)"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:600,color:isAdmin?"var(--gold)":"var(--txt2)",flexShrink:0}}>
           {(appUser.member.display_name||appUser.supabaseUser.email||"U")[0].toUpperCase()}
         </div>
         <div style={{overflow:"hidden",flex:1}}>
           <p style={{fontSize:12,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{appUser.member.display_name||appUser.supabaseUser.email}</p>
-          <span className={`pill ${isAdmin?"pill-gold":"pill-muted"}`} style={{fontSize:9,marginTop:2}}>{isAdmin?"Admin":"Miembro"}</span>
+          <span className={`pill ${isAdmin?"pill-gold":"pill-muted"}`} style={{fontSize:9}}>{isAdmin?"Admin":"Miembro"}</span>
         </div>
       </div>
-
-      <nav style={{flex:1,padding:"10px 10px",overflowY:"auto"}}>
-        <div style={{display:"flex",flexDirection:"column",gap:2}}>
+      <nav style={{flex:1,padding:"8px 10px",overflowY:"auto"}}>
+        <div style={{display:"flex",flexDirection:"column",gap:1}}>
           {navItems.map(item=>(
             <div key={item.id} className={`nav-item ${active===item.id?"active":""}`} onClick={()=>onChange(item.id)}>
               <span className="nav-icon">{item.icon}</span>
               <span>{item.label}</span>
+              {item.id==="inbound"&&inboundCount>0&&(
+                <span style={{marginLeft:"auto",fontSize:9,background:"#f47218",color:"#fff",padding:"1px 6px",borderRadius:99,fontWeight:600}}>{inboundCount}</span>
+              )}
               {"adminOnly" in item&&item.adminOnly&&<span style={{marginLeft:"auto",fontSize:9,color:"var(--gold)",opacity:.7}}>admin</span>}
             </div>
           ))}
         </div>
       </nav>
-
-      <div style={{padding:"12px 16px",borderTop:".5px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      <div style={{padding:"10px 16px",borderTop:".5px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <span style={{fontSize:11,color:"var(--txt3)"}}>Leads activos</span>
         <span className="pill pill-gold" style={{fontSize:11}}>{leadsCount}</span>
       </div>
@@ -1502,9 +2480,8 @@ function Sidebar({active,onChange,appUser,leadsCount,workspaces,onWorkspaceChang
   );
 }
 
-// ── TOP BAR ───────────────────────────────────────────────────────────────────
-function TopBar({activeTab,onAddLead,onLogout}:{activeTab:string;onAddLead:()=>void;onLogout:()=>void}) {
-  const label=NAV.find(n=>n.id===activeTab)?.label||"";
+function TopBar({activeTab,onAddLead,onLogout,onSetup}:{activeTab:string;onAddLead:()=>void;onLogout:()=>void;onSetup:()=>void}) {
+  const label=NAV_V8.find(n=>n.id===activeTab)?.label||"";
   return (
     <header style={{height:52,flexShrink:0,borderBottom:".5px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 28px",background:"rgba(7,9,15,.85)",backdropFilter:"blur(12px)"}}>
       <div style={{display:"flex",gap:8,alignItems:"center"}}>
@@ -1513,6 +2490,7 @@ function TopBar({activeTab,onAddLead,onLogout}:{activeTab:string;onAddLead:()=>v
         <span style={{fontSize:12,color:"var(--txt2)"}}>{label}</span>
       </div>
       <div style={{display:"flex",gap:10,alignItems:"center"}}>
+        <button className="btn btn-ghost" style={{fontSize:12,padding:"6px 12px"}} onClick={onSetup}>Mi negocio</button>
         <button className="btn btn-primary" style={{fontSize:12,padding:"6px 14px"}} onClick={onAddLead}>+ Nuevo lead</button>
         <button className="btn btn-ghost" style={{fontSize:12,padding:"6px 12px"}} onClick={onLogout}>Salir</button>
       </div>
@@ -1520,29 +2498,47 @@ function TopBar({activeTab,onAddLead,onLogout}:{activeTab:string;onAddLead:()=>v
   );
 }
 
-// ── APP LAYOUT ────────────────────────────────────────────────────────────────
 function AppLayout({appUser,onLogout}:{appUser:AppUser;onLogout:()=>void}) {
-  const [tab,setTab]=useState("dashboard");
+  const [tab,setTab] = useState("session");
   const isAdmin=appUser.member.role==="admin";
-  const [leads,setLeads]=useState<Lead[]>([
-    {id:"1",workspace_id:appUser.workspace.id,name:"María Velázquez",role:"Founder",company:"StartupMX",score:10,temp:"Warm",stage:"Calificado",next_action:"Call hoy",created_at:"2026-05-20"},
-    {id:"2",workspace_id:appUser.workspace.id,name:"Agencia Scale MX",role:"CEO",company:"Scale MX",score:9,temp:"Hot",stage:"Contactado",last_action:"Contactado",created_at:"2026-05-19"},
-    {id:"3",workspace_id:appUser.workspace.id,name:"Camila Torres",role:"Coach",company:"Self",score:9,temp:"Warm",stage:"Nuevo",next_action:"DM LinkedIn",created_at:"2026-05-20"},
-    {id:"4",workspace_id:appUser.workspace.id,name:"Diego Ramírez",role:"CMO",company:"Fintech SA",score:7,temp:"Frío",stage:"Propuesta",last_action:"Propuesta enviada",created_at:"2026-05-18"},
-    {id:"5",workspace_id:appUser.workspace.id,name:"Laura Gómez",role:"Growth Lead",company:"EdTech",score:8,temp:"Warm",stage:"Calificado",next_action:"Follow-up",created_at:"2026-05-17"},
+  const [leads,setLeads] = useState<Lead[]>([
+    {id:"1",workspace_id:appUser.workspace.id,name:"Maria Velazquez",role:"Founder",company:"StartupMX",score:10,temp:"Warm",stage:"Calificado",next_action:"Call hoy",linkedin_url:"https://linkedin.com/in/mvelazquez",email:"maria@startupmx.com",created_at:"2026-05-20"},
+    {id:"2",workspace_id:appUser.workspace.id,name:"Agencia Scale MX",role:"CEO",company:"Scale MX",score:9,temp:"Hot",stage:"Contactado",last_action:"Contactado",phone:"+54 9 11 4444-5555",created_at:"2026-05-19"},
+    {id:"3",workspace_id:appUser.workspace.id,name:"Camila Torres",role:"Coach",company:"Self",score:9,temp:"Warm",stage:"Nuevo",next_action:"DM LinkedIn",linkedin_url:"https://linkedin.com/in/camilatorres",created_at:"2026-05-20"},
+    {id:"4",workspace_id:appUser.workspace.id,name:"Diego Ramirez",role:"CMO",company:"Fintech SA",score:7,temp:"Frío",stage:"Propuesta",last_action:"Propuesta enviada",email:"diego@fintech.com",created_at:"2026-05-18"},
+    {id:"5",workspace_id:appUser.workspace.id,name:"Juan Ads Lead",role:"Emprendedor",company:"Self",score:8,temp:"Hot",stage:"Nuevo",source:"inbound",next_action:"Contactar en 5 min",phone:"+54 9 11 5555-6666",email:"juan@gmail.com",notes:"Lleno formulario Meta Ads - Quiere info sobre coaching",created_at:"2026-05-28"},
   ]);
-  const [members]=useState<Member[]>([
-    {id:"m1",workspace_id:appUser.workspace.id,user_id:appUser.supabaseUser.id,role:"admin",display_name:appUser.member.display_name||"Admin"},
-    {id:"m2",workspace_id:appUser.workspace.id,user_id:"user2",role:"member",display_name:"Colaborador 1"},
-  ]);
-  const [selLead,setSelLead]=useState<Lead|null>(null);
-  const [addOpen,setAddOpen]=useState(false);
+  const [activities,setActivities] = useState<Activity[]>([]);
+  const [selLead,setSelLead] = useState<Lead|null>(null);
+  const [addOpen,setAddOpen] = useState(false);
+  const [showSetup,setShowSetup] = useState(false);
+  const [bizProfile,setBizProfile] = useState<BusinessProfile|null>(()=>{
+    try{const s=localStorage.getItem("closer_biz_profile");return s?JSON.parse(s):null;}catch{return null;}
+  });
+
+  function addLead(l:Lead){setLeads(p=>[{...l,workspace_id:appUser.workspace.id},...p]);}
+  function updateLead(l:Lead){setLeads(p=>p.map(x=>x.id===l.id?l:x));}
+  function addActivity(a:Activity){setActivities(p=>[...p,a]);}
+  function getLeadActivities(leadId:string){return activities.filter(a=>a.lead_id===leadId);}
+  function saveBizProfile(p:BusinessProfile){localStorage.setItem("closer_biz_profile",JSON.stringify(p));setBizProfile(p);setShowSetup(false);}
+  function markSent(leadId:string,channel:string){
+    const lead=leads.find(l=>l.id===leadId);if(!lead)return;
+    updateLead({...lead,stage:lead.stage==="Nuevo"?"Contactado":lead.stage,last_action:`DM via ${channel}`});
+    addActivity({id:uid(),lead_id:leadId,type:"dm",channel,content:"Marcado enviado desde sesion del dia",created_at:new Date().toISOString(),user_name:"Vos"});
+  }
+
+  const inboundNew = leads.filter(l=>(l.source==="inbound"||l.source==="ads")&&l.stage==="Nuevo").length;
+
+  if(showSetup) return <BusinessSetup onSave={saveBizProfile} />;
 
   const views: Record<string,React.ReactNode> = {
+    session:   <DailySession leads={leads} profile={bizProfile} onLeadClick={setSelLead} onMarkSent={markSent} />,
     dashboard: <Dashboard leads={leads} />,
-    pipeline:  <Pipeline leads={leads} onLeadClick={setSelLead} />,
+    pipeline:  <Pipeline leads={leads} onLeadClick={setSelLead} onAddLead={addLead} />,
+    inbound:   <Pipeline leads={leads.filter(l=>l.source==="inbound"||l.source==="ads"||l.source==="landing")} onLeadClick={setSelLead} onAddLead={addLead} />,
     closer:    <VistaCloser leads={leads} onLeadClick={setSelLead} />,
-    buscador:  <Prospector onAddLead={l=>setLeads(p=>[l,...p])} workspaceId={appUser.workspace.id} />,
+    buscador:  <Prospector onAddLead={addLead} workspaceId={appUser.workspace.id} />,
+    import:    <CsvImport onImport={ls=>{ls.forEach(l=>addLead(l));}} workspaceId={appUser.workspace.id} />,
     generar:   <RedaccionIA leads={leads} />,
     email:     <EmailMarketing isAdmin={isAdmin} workspaceId={appUser.workspace.id} />,
     cadence:   <Cadences isAdmin={isAdmin} workspaceId={appUser.workspace.id} />,
@@ -1550,29 +2546,29 @@ function AppLayout({appUser,onLogout}:{appUser:AppUser;onLogout:()=>void}) {
     qualify:   <QualifyGate leads={leads} onScoreUpdate={(id,s)=>setLeads(p=>p.map(l=>l.id===id?{...l,score:s}:l))} />,
     metrics:   <Metrics leads={leads} isAdmin={isAdmin} />,
     knowledge: <Knowledge isAdmin={isAdmin} workspaceId={appUser.workspace.id} />,
-    team:      isAdmin?<TeamManagement workspace={appUser.workspace} members={members} onInvite={(email,role)=>console.log("invite",email,role)} />:null,
+    team:      isAdmin?<TeamManagement workspace={appUser.workspace} members={[{id:"m1",workspace_id:appUser.workspace.id,user_id:appUser.supabaseUser.id,role:"admin",display_name:appUser.member.display_name||"Admin"}]} onInvite={()=>{}} />:null,
     settings:  isAdmin?<ApiSettings workspaceId={appUser.workspace.id} />:null,
   };
 
   return (
     <div style={{display:"flex",height:"100vh",overflow:"hidden"}}>
-      <Sidebar active={tab} onChange={setTab} appUser={appUser} leadsCount={leads.length} workspaces={[appUser.workspace]} onWorkspaceChange={()=>{}} />
+      <Sidebar active={tab} onChange={setTab} appUser={appUser} leadsCount={leads.length} inboundCount={inboundNew} />
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-        <TopBar activeTab={tab} onAddLead={()=>setAddOpen(true)} onLogout={onLogout} />
-        <main style={{flex:1,overflow:"hidden"}}>{views[tab]||views["dashboard"]}</main>
+        <TopBar activeTab={tab} onAddLead={()=>setAddOpen(true)} onLogout={onLogout} onSetup={()=>setShowSetup(true)} />
+        <main style={{flex:1,overflow:"hidden"}}>{views[tab]||views["session"]}</main>
       </div>
-      {selLead&&<LeadDetail lead={selLead} onClose={()=>setSelLead(null)} onUpdate={l=>setLeads(p=>p.map(x=>x.id===l.id?l:x))} />}
-      <AddLeadModal open={addOpen} onClose={()=>setAddOpen(false)} onAdd={l=>setLeads(p=>[l,...p])} />
+      {selLead&&(
+        <LeadDetail lead={selLead} onClose={()=>setSelLead(null)} onUpdate={updateLead}
+          activities={getLeadActivities(selLead.id)} onAddActivity={addActivity} />
+      )}
+      <AddLeadModal open={addOpen} onClose={()=>setAddOpen(false)} onAdd={addLead} />
     </div>
   );
 }
 
-// ── ROOT ──────────────────────────────────────────────────────────────────────
 export default function CRMApp() {
-  const [appUser,setAppUser]=useState<AppUser|null>(null);
-
+  const [appUser,setAppUser] = useState<AppUser|null>(null);
   useEffect(()=>{
-    // Check existing session
     supabase.auth.getSession().then(({data:{session}})=>{
       if(session?.user){
         supabase.from("workspace_members").select("*,workspaces(*)").eq("user_id",session.user.id).single().then(({data})=>{
@@ -1584,12 +2580,7 @@ export default function CRMApp() {
       }
     });
   },[]);
-
-  async function handleLogout(){
-    await supabase.auth.signOut();
-    setAppUser(null);
-  }
-
+  async function handleLogout(){await supabase.auth.signOut();setAppUser(null);}
   return (
     <ToastProvider>
       {appUser
