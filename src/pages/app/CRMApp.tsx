@@ -2412,6 +2412,82 @@ function AuthScreen({onAuth}:{onAuth:(u:User,m:Member,w:Workspace)=>void}) {
 
 // ── SIDEBAR ───────────────────────────────────────────────────────────────────
 
+function ContactChip({icon,label,color,border,bg,href}:{icon:string;label:string;color:string;border:string;bg:string;href?:string}) {
+  const style:React.CSSProperties = {
+    display:"inline-flex",alignItems:"center",gap:4,padding:"2px 9px",
+    borderRadius:99,fontSize:10,fontWeight:500,
+    background:bg,color,border:`.5px solid ${border}`,
+    textDecoration:"none",cursor:href?"pointer":"default",
+    whiteSpace:"nowrap",maxWidth:200,overflow:"hidden",textOverflow:"ellipsis"
+  };
+  return href
+    ? <a href={href} target="_blank" rel="noopener noreferrer" style={style}>{icon} {label}</a>
+    : <span style={style}>{icon} {label}</span>;
+}
+
+function QualifyGate({leads,onScoreUpdate}:{leads:Lead[];onScoreUpdate:(id:string,score:number)=>void}) {
+  const [sel,setSel]=useState<Lead|null>(null);
+  const [ans,setAns]=useState({budget:"",authority:"",need:"",timeline:""});
+  const qs=[
+    {k:"budget",l:"Tiene presupuesto?",opts:["No sabe","< $500/mes","$500-2k/mes","> $2k/mes"]},
+    {k:"authority",l:"Es el decisor?",opts:["No","Influenciador","Co-decisor","Decisor unico"]},
+    {k:"need",l:"Urgencia del problema?",opts:["Baja","Media","Alta","Critica"]},
+    {k:"timeline",l:"Cuando necesita solucion?",opts:["> 6 meses","3-6 meses","1-3 meses","Ahora"]}
+  ] as const;
+  const vals=Object.values(ans);
+  const score=vals.some(v=>!v)?null:Math.round(vals.reduce((s,v)=>s+(
+    ["No sabe","No","Baja","> 6 meses"].includes(v)?2:
+    ["< $500/mes","Influenciador","Media","3-6 meses"].includes(v)?5:
+    ["$500-2k/mes","Co-decisor","Alta","1-3 meses"].includes(v)?8:10
+  ),0)/4*10)/10;
+  const toast=useToast();
+  return (
+    <div className="fade-up" style={{padding:"28px 32px",height:"100%",overflowY:"auto"}}>
+      <div style={{marginBottom:24}}>
+        <h1 className="display" style={{fontSize:36,fontWeight:300,letterSpacing:"-0.01em"}}>Qualify Gate</h1>
+        <p style={{fontSize:13,color:"var(--txt2)",marginTop:4}}>Calificacion BANT interactiva</p>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"200px 1fr",gap:20,maxWidth:760}}>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {leads.map(l=>(
+            <div key={l.id} className={`glass ${sel?.id===l.id?"glass-gold":""}`} style={{padding:"12px 14px",cursor:"pointer"}} onClick={()=>setSel(l)}>
+              <p style={{fontWeight:500,fontSize:12}}>{l.name}</p>
+              <ScoreBar score={l.score} />
+            </div>
+          ))}
+        </div>
+        <div>
+          {qs.map(q=>(
+            <div key={q.k} style={{marginBottom:14}}>
+              <label style={{display:"block",fontSize:11,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:6,fontWeight:500}}>{q.l}</label>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                {q.opts.map(opt=>(
+                  <button key={opt} className={`btn ${(ans as any)[q.k]===opt?"btn-primary":"btn-ghost"}`}
+                    style={{fontSize:12,padding:"6px 12px"}}
+                    onClick={()=>setAns(p=>({...p,[q.k]:opt}))}>
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+          {score!==null&&(
+            <div className="glass glass-gold" style={{padding:"20px 22px",marginTop:8}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <p style={{fontSize:11,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:4}}>Score BANT</p>
+                  <p className="display" style={{fontSize:42,fontWeight:300,color:scoreColor(score)}}>{score}<span style={{fontSize:20,color:"var(--txt2)"}}>/10</span></p>
+                </div>
+                {sel&&<button className="btn btn-primary" onClick={()=>{onScoreUpdate(sel.id,Math.round(score));toast(`Score de ${sel.name} actualizado a ${Math.round(score)}`,"ok");}}>Actualizar score</button>}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function VistaCloser({leads,onLeadClick}:{leads:Lead[];onLeadClick:(l:Lead)=>void}) {
   const sorted=[...leads].sort((a,b)=>b.score-a.score);
   return (
