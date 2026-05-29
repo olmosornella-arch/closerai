@@ -1845,9 +1845,6 @@ function RedaccionIA({leads}:{leads:Lead[]}) {
 // ── INBOUND PIPELINE ──────────────────────────────────────────────────────────
 const INBOUND_STAGES = ["Nuevo","Contactado","Calificado","Propuesta","Cerrado"];
 const OUTBOUND_STAGES = ["Nuevo","Contactado","Calificado","Propuesta","Cerrado"];
-const STAGE_COLORS: Record<string,string> = {
-  Nuevo:"#6366f1",Contactado:"#3b82f6",Calificado:"#f59e0b",Propuesta:"#10b981",Cerrado:"#C9A84C"
-};
 
 // ── PIPELINE v8 (Inbound + Outbound) ─────────────────────────────────────────
 function Pipeline({leads,onLeadClick,onAddLead}:{leads:Lead[];onLeadClick:(l:Lead)=>void;onAddLead:(l:Lead)=>void}) {
