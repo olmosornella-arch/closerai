@@ -243,11 +243,41 @@ const NAV = [
 ] as const;
 
 const API_SERVICES = [
-  {key:"apify",label:"Apify",desc:"Extracción de leads LinkedIn",placeholder:"apify_api_..."},
-  {key:"groq",label:"Groq",desc:"Generación de mensajes IA",placeholder:"gsk_..."},
-  {key:"anthropic",label:"Anthropic",desc:"Análisis avanzado con Claude",placeholder:"sk-ant-..."},
-  {key:"n8n",label:"n8n Webhook",desc:"Automatizaciones",placeholder:"https://your-n8n.com/webhook/..."},
-  {key:"webhook",label:"Webhook custom",desc:"Endpoint propio",placeholder:"https://..."},
+  // ── IA / LLMs ─────────────────────────────────────────────────────
+  {key:"anthropic",label:"Anthropic (Claude)",desc:"IA avanzada para mensajes y análisis",placeholder:"sk-ant-...",category:"ia"},
+  {key:"openai",label:"OpenAI",desc:"GPT-4, GPT-5 para generación",placeholder:"sk-...",category:"ia"},
+  {key:"openrouter",label:"OpenRouter",desc:"Acceso a 100+ modelos con una sola key",placeholder:"sk-or-v1-...",category:"ia"},
+  {key:"groq",label:"Groq",desc:"Llama 3.3 70B ultra rápido (gratis)",placeholder:"gsk_...",category:"ia"},
+  // ── Prospección ───────────────────────────────────────────────────
+  {key:"apify",label:"Apify",desc:"Scraping LinkedIn, Instagram, Facebook, Google Maps",placeholder:"apify_api_...",category:"prospect"},
+  {key:"apollo",label:"Apollo.io",desc:"Base de datos B2B con emails verificados",placeholder:"...",category:"prospect"},
+  {key:"phantombuster",label:"Phantombuster",desc:"Automatización LinkedIn DMs (de pago)",placeholder:"...",category:"prospect"},
+  // ── Email ─────────────────────────────────────────────────────────
+  {key:"resend",label:"Resend",desc:"Envío de emails (3000/mes gratis)",placeholder:"re_...",category:"email"},
+  {key:"sendgrid",label:"SendGrid",desc:"Email transaccional masivo",placeholder:"SG.",category:"email"},
+  // ── Comunicación ──────────────────────────────────────────────────
+  {key:"telegram_bot",label:"Telegram Bot",desc:"Alertas instantáneas (token del bot)",placeholder:"1234567:ABC-DEF...",category:"comm"},
+  {key:"telegram_chat",label:"Telegram Chat ID",desc:"Tu chat ID para recibir alertas",placeholder:"123456789",category:"comm"},
+  {key:"twilio_sid",label:"Twilio Account SID",desc:"WhatsApp Business / SMS",placeholder:"AC...",category:"comm"},
+  {key:"twilio_token",label:"Twilio Auth Token",desc:"Token de Twilio",placeholder:"...",category:"comm"},
+  {key:"whatsapp_token",label:"WhatsApp Cloud API",desc:"Meta WhatsApp Business token",placeholder:"EAAxxxx...",category:"comm"},
+  // ── Agendado ──────────────────────────────────────────────────────
+  {key:"calendly_url",label:"Calendly URL",desc:"Tu link público de Calendly",placeholder:"https://calendly.com/tu-usuario",category:"meet"},
+  {key:"cal_url",label:"Cal.com URL",desc:"Tu link público de Cal.com",placeholder:"https://cal.com/tu-usuario",category:"meet"},
+  // ── Automatización ────────────────────────────────────────────────
+  {key:"n8n",label:"n8n Webhook",desc:"Tu webhook de n8n para automatizaciones",placeholder:"https://your-n8n.com/webhook/...",category:"auto"},
+  {key:"make",label:"Make.com Webhook",desc:"Webhook de Make (Integromat)",placeholder:"https://hook.eu1.make.com/...",category:"auto"},
+  {key:"zapier",label:"Zapier Webhook",desc:"Catch hook de Zapier",placeholder:"https://hooks.zapier.com/...",category:"auto"},
+  {key:"webhook",label:"Webhook custom",desc:"Tu propio endpoint",placeholder:"https://...",category:"auto"},
+];
+
+const API_CATEGORIES = [
+  {id:"ia",label:"Inteligencia Artificial",icon:"✦"},
+  {id:"prospect",label:"Prospección",icon:"◉"},
+  {id:"email",label:"Email Marketing",icon:"✉"},
+  {id:"comm",label:"Comunicación",icon:"◐"},
+  {id:"meet",label:"Agendado de calls",icon:"◈"},
+  {id:"auto",label:"Automatización",icon:"⚙"},
 ];
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
@@ -881,9 +911,9 @@ function ApiSettings({workspaceId}:{workspaceId:string}) {
   const [keys,setKeys] = useState<Record<string,string>>({});
   const [visible,setVisible] = useState<Record<string,boolean>>({});
   const [saving,setSaving] = useState<string|null>(null);
+  const [activeCat,setActiveCat] = useState<string>("ia");
   const toast = useToast();
 
-  // Load from localStorage (en producción cargar de Supabase)
   useEffect(()=>{
     const saved = localStorage.getItem(`closer_apikeys_${workspaceId}`);
     if (saved) setKeys(JSON.parse(saved));
@@ -891,30 +921,58 @@ function ApiSettings({workspaceId}:{workspaceId:string}) {
 
   async function saveKey(service:string) {
     setSaving(service);
-    await new Promise(r=>setTimeout(r,500));
-    const updated = {...keys};
-    localStorage.setItem(`closer_apikeys_${workspaceId}`,JSON.stringify(updated));
-    // En producción: await supabase.from("api_keys").upsert({workspace_id,service,key_value:encrypt(keys[service])})
+    await new Promise(r=>setTimeout(r,400));
+    localStorage.setItem(`closer_apikeys_${workspaceId}`,JSON.stringify(keys));
     setSaving(null);
     toast(`API Key de ${service} guardada`,"ok");
   }
 
+  const configured = API_SERVICES.filter(s=>keys[s.key]).length;
+  const services = API_SERVICES.filter(s=>(s as any).category===activeCat);
+
   return (
     <div className="fade-up" style={{padding:"32px 36px",height:"100%",overflowY:"auto"}}>
-      <div style={{marginBottom:28}}>
-        <h1 className="display" style={{fontSize:36,fontWeight:300,letterSpacing:"-0.01em"}}>API Keys</h1>
-        <p style={{fontSize:13,color:"var(--txt2)",marginTop:4}}>Solo visible para administradores del workspace</p>
+      <div style={{marginBottom:24,display:"flex",justifyContent:"space-between",alignItems:"flex-end",flexWrap:"wrap",gap:12}}>
+        <div>
+          <h1 className="display" style={{fontSize:36,fontWeight:300,letterSpacing:"-0.01em"}}>API Keys</h1>
+          <p style={{fontSize:13,color:"var(--txt2)",marginTop:4}}>Solo visible para administradores del workspace</p>
+        </div>
+        <span className="pill pill-gold" style={{fontSize:12}}>{configured} configuradas de {API_SERVICES.length}</span>
       </div>
 
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(380px,1fr))",gap:16,maxWidth:900}}>
-        {API_SERVICES.map(svc=>(
-          <div key={svc.key} className="glass glass-gold" style={{padding:"20px 22px"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
-              <div>
+      {/* Category tabs */}
+      <div style={{display:"flex",gap:6,marginBottom:24,flexWrap:"wrap"}}>
+        {API_CATEGORIES.map(c=>{
+          const count = API_SERVICES.filter(s=>(s as any).category===c.id).length;
+          const done = API_SERVICES.filter(s=>(s as any).category===c.id&&keys[s.key]).length;
+          return (
+            <button key={c.id} onClick={()=>setActiveCat(c.id)}
+              style={{
+                padding:"8px 16px",borderRadius:8,
+                border:`.5px solid ${activeCat===c.id?"var(--gold-b)":"var(--border)"}`,
+                background:activeCat===c.id?"var(--gold-m)":"transparent",
+                color:activeCat===c.id?"var(--gold)":"var(--txt2)",
+                fontSize:12,fontWeight:500,cursor:"pointer",
+                fontFamily:"'DM Sans',sans-serif",
+                display:"flex",alignItems:"center",gap:8
+              }}>
+              <span>{c.icon}</span>
+              <span>{c.label}</span>
+              <span style={{fontSize:10,opacity:.7}}>{done}/{count}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(380px,1fr))",gap:16,maxWidth:1100}} className="csv-fields">
+        {services.map(svc=>(
+          <div key={svc.key} className={`glass ${keys[svc.key]?"glass-green":""}`} style={{padding:"18px 20px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+              <div style={{flex:1}}>
                 <p style={{fontWeight:500,fontSize:14}}>{svc.label}</p>
-                <p style={{fontSize:11,color:"var(--txt2)",marginTop:2}}>{svc.desc}</p>
+                <p style={{fontSize:11,color:"var(--txt2)",marginTop:2,lineHeight:1.5}}>{svc.desc}</p>
               </div>
-              {keys[svc.key]&&<span className="pill pill-green" style={{fontSize:10}}>● Configurada</span>}
+              {keys[svc.key]&&<span className="pill pill-green" style={{fontSize:10,flexShrink:0,marginLeft:8}}>✓ Activa</span>}
             </div>
             <div style={{display:"flex",gap:8}}>
               <div style={{flex:1,position:"relative"}}>
@@ -924,7 +982,7 @@ function ApiSettings({workspaceId}:{workspaceId:string}) {
                   value={keys[svc.key]||""}
                   onChange={e=>setKeys(p=>({...p,[svc.key]:e.target.value}))}
                   placeholder={svc.placeholder}
-                  style={{paddingRight:40}}
+                  style={{paddingRight:38,fontSize:12}}
                 />
                 <button
                   onClick={()=>setVisible(p=>({...p,[svc.key]:!p[svc.key]}))}
@@ -935,7 +993,7 @@ function ApiSettings({workspaceId}:{workspaceId:string}) {
               </div>
               <button
                 className="btn btn-primary"
-                style={{flexShrink:0,padding:"0 16px"}}
+                style={{flexShrink:0,padding:"0 14px",fontSize:12}}
                 onClick={()=>saveKey(svc.key)}
                 disabled={!keys[svc.key]||saving===svc.key}
               >
@@ -946,9 +1004,22 @@ function ApiSettings({workspaceId}:{workspaceId:string}) {
         ))}
       </div>
 
-      <div className="glass" style={{maxWidth:900,padding:"16px 20px",marginTop:20,border:".5px solid rgba(96,165,250,.2)"}}>
+      {activeCat==="auto"&&(
+        <div className="glass glass-gold" style={{maxWidth:1100,padding:"18px 20px",marginTop:20}}>
+          <p style={{fontSize:11,letterSpacing:".08em",textTransform:"uppercase",color:"var(--gold)",fontWeight:500,marginBottom:10}}>Flujos n8n disponibles</p>
+          <p style={{fontSize:12,color:"var(--txt2)",marginBottom:10,lineHeight:1.7}}>
+            Descargá el archivo JSON e importalo en tu instancia de n8n para activar la captura automática de leads inbound desde anuncios Meta, Google y landing pages.
+          </p>
+          <ul style={{fontSize:12,color:"var(--txt2)",lineHeight:2,paddingLeft:18}}>
+            <li><strong>Inbound Lead Capture</strong>: recibe leads de Meta Ads, Google Ads, landings → guarda en Supabase → te alerta por Telegram → manda email de bienvenida con Resend</li>
+            <li>Variables necesarias: <code style={{color:"var(--gold)"}}>SUPABASE_URL</code>, <code style={{color:"var(--gold)"}}>CLOSERAI_WORKSPACE_ID</code>, <code style={{color:"var(--gold)"}}>TELEGRAM_BOT_TOKEN</code>, <code style={{color:"var(--gold)"}}>TELEGRAM_CHAT_ID</code>, <code style={{color:"var(--gold)"}}>RESEND_API_KEY</code></li>
+          </ul>
+        </div>
+      )}
+
+      <div className="glass" style={{maxWidth:1100,padding:"14px 18px",marginTop:20,border:".5px solid rgba(96,165,250,.2)"}}>
         <p style={{fontSize:12,color:"var(--blue)",lineHeight:1.7}}>
-          🔐 Las API Keys se guardan de forma segura y nunca son visibles para los miembros del equipo. En producción se encriptan con pgcrypto antes de almacenarse en Supabase.
+          🔐 Las API Keys se guardan localmente y nunca son visibles para los miembros del equipo. En producción se encriptan con pgcrypto antes de almacenarse en Supabase.
         </p>
       </div>
     </div>
