@@ -72,8 +72,116 @@ html,body,#root{height:100%;overflow:hidden}
 .tab-btn.active{background:var(--bg3);color:var(--txt);box-shadow:0 1px 4px rgba(0,0,0,.3)}
 .chart-bar{border-radius:4px 4px 0 0;transition:height .4s ease,background .2s}
 .chart-bar:hover{opacity:.85}
+
+/* ── MOBILE ─────────────────────────────────────────────────────── */
+.mobile-only{display:none}
+.desktop-only{display:block}
+.sidebar-mobile{position:relative;transform:translateX(0)}
+.sidebar-overlay{display:none}
+
+@media (max-width: 768px) {
+  :root{--sidebar-w:0px}
+  .mobile-only{display:flex !important}
+  .desktop-only{display:none !important}
+
+  /* Sidebar becomes off-canvas drawer */
+  .sidebar-mobile{
+    position:fixed !important;
+    left:0;top:0;bottom:0;
+    width:240px !important;
+    transform:translateX(-100%);
+    transition:transform .25s ease;
+    z-index:1000;
+    border-right:.5px solid var(--border);
+    box-shadow:0 0 40px rgba(0,0,0,.6);
+  }
+  .sidebar-mobile.open{transform:translateX(0)}
+  .sidebar-overlay{
+    display:block;
+    position:fixed;inset:0;background:rgba(0,0,0,.6);
+    backdrop-filter:blur(4px);z-index:999;
+    opacity:0;pointer-events:none;transition:opacity .25s;
+  }
+  .sidebar-overlay.open{opacity:1;pointer-events:auto}
+
+  /* Topbar */
+  .topbar-mobile{padding:0 14px !important;height:50px !important}
+  .topbar-mobile .topbar-btns{gap:6px !important}
+  .topbar-mobile .btn{padding:5px 10px !important;font-size:11px !important}
+  .topbar-mobile .topbar-label{display:none !important}
+
+  /* Main content padding */
+  main > div{padding:18px 14px !important}
+  main h1{font-size:24px !important}
+
+  /* Grids collapse to single column */
+  .grid-mobile-1{grid-template-columns:1fr !important}
+  .grid-mobile-2{grid-template-columns:repeat(2,1fr) !important}
+
+  /* Pipeline kanban */
+  .pipeline-cols{flex-direction:row !important;overflow-x:auto;scroll-snap-type:x mandatory}
+  .pipeline-cols > div{min-width:85vw !important;scroll-snap-align:start}
+
+  /* Forms */
+  .inp{font-size:16px !important; /* prevents iOS zoom on focus */}
+
+  /* Modals full-screen on mobile */
+  .modal-content{max-height:95vh !important;width:100% !important;margin:0 !important}
+
+  /* Hide score sidebars in lead detail */
+  .modal-content > div:first-child{padding:14px 16px 0 !important}
+
+  /* Tabs scroll */
+  .tab-bar{overflow-x:auto;max-width:100%}
+
+  /* Daily session metrics */
+  .daily-stats{grid-template-columns:repeat(3,1fr) !important;gap:8px !important}
+  .daily-stats p.display{font-size:20px !important}
+
+  /* AI Settings cards */
+  .ai-stats{grid-template-columns:repeat(2,1fr) !important}
+
+  /* CSV import */
+  .csv-fields{grid-template-columns:1fr !important}
+
+  /* Prospector */
+  .prospector-layout{flex-direction:column !important}
+  .prospector-sidebar{width:100% !important;max-height:200px;overflow-y:auto}
+
+  /* Inbox layout */
+  .inbox-layout{grid-template-columns:1fr !important}
+
+  /* Quick links */
+  .quick-links{flex-wrap:wrap;gap:4px !important}
+  .quick-links a{font-size:11px !important;padding:3px 8px !important}
+}
+
+@media (max-width: 480px) {
+  .daily-stats{grid-template-columns:1fr !important}
+  .ai-stats{grid-template-columns:1fr !important}
+  .topbar-mobile .btn{padding:4px 8px !important;font-size:10px !important}
+}
+
+/* Hamburger menu */
+.hamburger-btn{
+  display:none;width:36px;height:36px;border-radius:8px;
+  border:.5px solid var(--border);background:var(--surface);
+  align-items:center;justify-content:center;cursor:pointer;
+  font-size:18px;color:var(--txt);
+}
+@media (max-width: 768px) {
+  .hamburger-btn{display:flex !important}
+}
 `;
 document.head.appendChild(_s);
+
+// Ensure mobile viewport
+if (!document.querySelector('meta[name="viewport"]')) {
+  const vp = document.createElement('meta');
+  vp.name = 'viewport';
+  vp.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+  document.head.appendChild(vp);
+}
 
 // ── SUPABASE CLIENT ───────────────────────────────────────────────────────────
 const SUPA_URL = import.meta.env.VITE_SUPABASE_URL || "";
@@ -903,6 +1011,375 @@ const PROSPECTOR_TIER: Record<string,{label:string;bg:string;color:string}> = {
   freemium: {label:"Freemium",bg:"rgba(201,168,76,0.1)",  color:"#C9A84C"},
   paid:     {label:"De pago", bg:"rgba(248,113,113,0.1)", color:"#f87171"}
 };
+
+// ── AI INTEGRATION MODULE ─────────────────────────────────────────────────────
+// Wrapper para llamadas a Anthropic API - solo se activa si el usuario configuro su key
+
+interface AiUsage {
+  date: string;
+  feature: string;
+  tokens_in: number;
+  tokens_out: number;
+  cost_usd: number;
+}
+
+interface AiConfig {
+  enabled: boolean;
+  provider: "anthropic"|"openai";
+  model: string;
+  features: {
+    redaccion: boolean;
+    inbox: boolean;
+    qualify: boolean;
+    signals: boolean;
+  };
+}
+
+// Pricing per 1M tokens (USD) - actualizado mayo 2026
+const AI_PRICING: Record<string,{in:number;out:number;label:string}> = {
+  "claude-opus-4-7":     {in:5,    out:25,   label:"Claude Opus 4.7 (max calidad)"},
+  "claude-sonnet-4-6":   {in:3,    out:15,   label:"Claude Sonnet 4.6 (recomendado)"},
+  "claude-haiku-4-5":    {in:1,    out:5,    label:"Claude Haiku 4.5 (mas barato)"},
+};
+
+function calculateCost(tokensIn:number, tokensOut:number, model:string): number {
+  const p = AI_PRICING[model];
+  if(!p) return 0;
+  return (tokensIn * p.in + tokensOut * p.out) / 1_000_000;
+}
+
+// Hook to get current AI config
+function useAiConfig(workspaceId:string): AiConfig {
+  const [config,setConfig] = useState<AiConfig>({
+    enabled:false,
+    provider:"anthropic",
+    model:"claude-sonnet-4-6",
+    features:{redaccion:true,inbox:true,qualify:true,signals:true}
+  });
+
+  useEffect(()=>{
+    const apiKeys = localStorage.getItem(`closer_apikeys_${workspaceId}`);
+    const aiConf = localStorage.getItem(`closer_ai_config_${workspaceId}`);
+    if(apiKeys && aiConf) {
+      const keys = JSON.parse(apiKeys);
+      const conf = JSON.parse(aiConf);
+      setConfig({...conf,enabled:!!keys.anthropic||!!keys.openai});
+    }
+  },[workspaceId]);
+
+  return config;
+}
+
+// Get API key from local storage
+function getApiKey(workspaceId:string, provider:string): string|null {
+  try {
+    const stored = localStorage.getItem(`closer_apikeys_${workspaceId}`);
+    if(!stored) return null;
+    const keys = JSON.parse(stored);
+    return keys[provider] || null;
+  } catch { return null; }
+}
+
+// Log AI usage to track costs
+function logAiUsage(workspaceId:string, feature:string, tokensIn:number, tokensOut:number, model:string) {
+  const cost = calculateCost(tokensIn, tokensOut, model);
+  const entry:AiUsage = {
+    date: new Date().toISOString(),
+    feature, tokens_in:tokensIn, tokens_out:tokensOut, cost_usd:cost
+  };
+  try {
+    const key = `closer_ai_usage_${workspaceId}`;
+    const existing = JSON.parse(localStorage.getItem(key)||"[]");
+    existing.push(entry);
+    // Keep last 1000 entries
+    if(existing.length > 1000) existing.splice(0, existing.length - 1000);
+    localStorage.setItem(key, JSON.stringify(existing));
+  } catch {}
+}
+
+// Call Claude API
+async function callClaude(
+  workspaceId:string,
+  feature:string,
+  systemPrompt:string,
+  userPrompt:string,
+  model:string="claude-sonnet-4-6"
+): Promise<{success:boolean;text?:string;error?:string;cost?:number}> {
+  const key = getApiKey(workspaceId, "anthropic");
+  if(!key) return {success:false, error:"No hay API key de Anthropic configurada"};
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "x-api-key":key,
+        "anthropic-version":"2023-06-01",
+        "anthropic-dangerous-direct-browser-access":"true"
+      },
+      body:JSON.stringify({
+        model: model==="claude-sonnet-4-6"?"claude-sonnet-4-5-20250929":
+               model==="claude-opus-4-7"?"claude-opus-4-1-20250805":
+               "claude-haiku-4-5-20251001",
+        max_tokens:1024,
+        system:systemPrompt,
+        messages:[{role:"user",content:userPrompt}]
+      })
+    });
+
+    if(!res.ok) {
+      const err = await res.text();
+      return {success:false, error:`API error: ${res.status} - ${err.slice(0,200)}`};
+    }
+
+    const data = await res.json();
+    const text = data.content?.[0]?.text || "";
+    const tokensIn = data.usage?.input_tokens || 0;
+    const tokensOut = data.usage?.output_tokens || 0;
+    const cost = calculateCost(tokensIn, tokensOut, model);
+
+    logAiUsage(workspaceId, feature, tokensIn, tokensOut, model);
+
+    return {success:true, text, cost};
+  } catch(e:any) {
+    return {success:false, error:e.message || "Error desconocido"};
+  }
+}
+
+// ── AI SETTINGS PANEL ─────────────────────────────────────────────────────────
+function AiSettings({workspaceId}:{workspaceId:string}) {
+  const [config,setConfig] = useState<AiConfig>({
+    enabled:false,
+    provider:"anthropic",
+    model:"claude-sonnet-4-6",
+    features:{redaccion:true,inbox:true,qualify:true,signals:true}
+  });
+  const [usage,setUsage] = useState<AiUsage[]>([]);
+  const [hasKey,setHasKey] = useState(false);
+  const toast = useToast();
+
+  useEffect(()=>{
+    const apiKeys = localStorage.getItem(`closer_apikeys_${workspaceId}`);
+    if(apiKeys) {
+      const keys = JSON.parse(apiKeys);
+      setHasKey(!!keys.anthropic);
+    }
+    const stored = localStorage.getItem(`closer_ai_config_${workspaceId}`);
+    if(stored) setConfig({...JSON.parse(stored), enabled:!!apiKeys&&!!JSON.parse(apiKeys).anthropic});
+    const u = localStorage.getItem(`closer_ai_usage_${workspaceId}`);
+    if(u) setUsage(JSON.parse(u));
+  },[workspaceId]);
+
+  function saveConfig(c:AiConfig) {
+    setConfig(c);
+    localStorage.setItem(`closer_ai_config_${workspaceId}`,JSON.stringify(c));
+    toast("Configuracion guardada","ok");
+  }
+
+  function toggleFeature(f:keyof AiConfig["features"]) {
+    const newConfig = {...config, features:{...config.features, [f]:!config.features[f]}};
+    saveConfig(newConfig);
+  }
+
+  // Stats this month
+  const now = new Date();
+  const thisMonth = usage.filter(u=>{
+    const d = new Date(u.date);
+    return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+  });
+  const totalCost = thisMonth.reduce((s,u)=>s+u.cost_usd,0);
+  const totalCalls = thisMonth.length;
+  const totalTokensIn = thisMonth.reduce((s,u)=>s+u.tokens_in,0);
+  const totalTokensOut = thisMonth.reduce((s,u)=>s+u.tokens_out,0);
+
+  return (
+    <div className="fade-up" style={{padding:"32px 36px",height:"100%",overflowY:"auto"}}>
+      <div style={{marginBottom:28}}>
+        <h1 className="display" style={{fontSize:36,fontWeight:300,letterSpacing:"-0.01em"}}>IA Avanzada</h1>
+        <p style={{fontSize:13,color:"var(--txt2)",marginTop:4}}>Conecta tu API de Claude para mensajes hiperpersonalizados, analisis profundo y deteccion de senales</p>
+      </div>
+
+      {/* Status banner */}
+      <div className="glass" style={{
+        padding:"16px 20px",
+        marginBottom:24,
+        border:`.5px solid ${hasKey?"rgba(16,185,129,.4)":"rgba(251,146,60,.3)"}`,
+        background:hasKey?"rgba(16,185,129,.06)":"rgba(251,146,60,.05)",
+      }}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <span style={{fontSize:20}}>{hasKey?"✓":"⚠"}</span>
+          <div style={{flex:1}}>
+            <p style={{fontWeight:500,fontSize:14,color:hasKey?"#10b981":"#fb923c"}}>
+              {hasKey?"IA Avanzada ACTIVA":"IA Avanzada DESACTIVADA"}
+            </p>
+            <p style={{fontSize:12,color:"var(--txt2)",marginTop:2}}>
+              {hasKey
+                ?"Tu API key esta configurada. La app usara Claude para potenciar las funciones activadas."
+                :"Cargá tu API key de Anthropic en Settings → API Keys para activar funciones de IA. El CRM funciona perfecto sin esto, pero la IA agrega un nivel mas."}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Cost tracker */}
+      {hasKey && (
+        <div className="glass glass-gold" style={{padding:"18px 20px",marginBottom:24}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <p style={{fontSize:11,letterSpacing:".08em",textTransform:"uppercase",color:"var(--txt2)",fontWeight:500}}>Uso este mes</p>
+            <span style={{fontSize:10,color:"var(--txt3)"}}>{now.toLocaleDateString("es-ES",{month:"long",year:"numeric"})}</span>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16}}>
+            <div>
+              <p className="display" style={{fontSize:28,fontWeight:300,color:"var(--gold)"}}>${totalCost.toFixed(2)}</p>
+              <p style={{fontSize:11,color:"var(--txt2)"}}>Costo total USD</p>
+            </div>
+            <div>
+              <p className="display" style={{fontSize:28,fontWeight:300}}>{totalCalls}</p>
+              <p style={{fontSize:11,color:"var(--txt2)"}}>Llamadas a IA</p>
+            </div>
+            <div>
+              <p className="display" style={{fontSize:28,fontWeight:300}}>{(totalTokensIn/1000).toFixed(1)}k</p>
+              <p style={{fontSize:11,color:"var(--txt2)"}}>Tokens in</p>
+            </div>
+            <div>
+              <p className="display" style={{fontSize:28,fontWeight:300}}>{(totalTokensOut/1000).toFixed(1)}k</p>
+              <p style={{fontSize:11,color:"var(--txt2)"}}>Tokens out</p>
+            </div>
+          </div>
+          <p style={{fontSize:11,color:"var(--txt3)",marginTop:12,paddingTop:12,borderTop:".5px solid var(--border)"}}>
+            Vos pagas directamente a Anthropic. CloserAI no toma comision. Podes ver tus gastos en console.anthropic.com
+          </p>
+        </div>
+      )}
+
+      {/* Model selector */}
+      <div className="glass" style={{padding:"18px 20px",marginBottom:24}}>
+        <p style={{fontSize:11,letterSpacing:".08em",textTransform:"uppercase",color:"var(--txt2)",fontWeight:500,marginBottom:12}}>Modelo a usar</p>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {Object.entries(AI_PRICING).map(([id,p])=>(
+            <label key={id} style={{
+              display:"flex",alignItems:"center",gap:12,padding:"10px 14px",
+              borderRadius:8,border:`.5px solid ${config.model===id?"var(--gold-b)":"var(--border)"}`,
+              background:config.model===id?"var(--gold-m)":"transparent",
+              cursor:"pointer",transition:"all .15s"
+            }}>
+              <input type="radio" checked={config.model===id} onChange={()=>saveConfig({...config,model:id})}
+                style={{accentColor:"var(--gold)"}} />
+              <div style={{flex:1}}>
+                <p style={{fontSize:13,fontWeight:500}}>{p.label}</p>
+                <p style={{fontSize:11,color:"var(--txt2)",marginTop:2}}>
+                  ${p.in}/M input · ${p.out}/M output
+                </p>
+              </div>
+              <span className="pill pill-muted" style={{fontSize:10}}>
+                ~${((p.in*500 + p.out*300)/1_000_000).toFixed(3)}/mensaje
+              </span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Features toggles */}
+      <div className="glass" style={{padding:"18px 20px",marginBottom:24}}>
+        <p style={{fontSize:11,letterSpacing:".08em",textTransform:"uppercase",color:"var(--txt2)",fontWeight:500,marginBottom:14}}>Funciones que usan IA</p>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {[
+            {key:"redaccion" as const, label:"Redaccion IA", desc:"Boton 'Mejorar con IA' en Redaccion - genera mensajes hiperpersonalizados usando datos del lead"},
+            {key:"inbox" as const, label:"Inbox - Analisis profundo", desc:"Detecta sentiment, urgencia, objeciones reales. Sugiere script de respuesta optimizado"},
+            {key:"qualify" as const, label:"Qualify Gate - Score automatico", desc:"Calcula BANT score basado en notas y actividad del lead automaticamente"},
+            {key:"signals" as const, label:"Senales de intencion", desc:"Detecta cambios de cargo, posts del lead, comentarios en competencia y otras senales de compra"},
+          ].map(f=>(
+            <div key={f.key} style={{
+              display:"flex",alignItems:"center",gap:12,padding:"12px 14px",
+              borderRadius:8,border:".5px solid var(--border)",
+              opacity:hasKey?1:.5
+            }}>
+              <div style={{flex:1}}>
+                <p style={{fontSize:13,fontWeight:500}}>{f.label}</p>
+                <p style={{fontSize:11,color:"var(--txt2)",marginTop:2}}>{f.desc}</p>
+              </div>
+              <button
+                onClick={()=>hasKey&&toggleFeature(f.key)}
+                disabled={!hasKey}
+                style={{
+                  width:42,height:22,borderRadius:99,border:"none",
+                  background:config.features[f.key]?"var(--gold)":"var(--border)",
+                  position:"relative",cursor:hasKey?"pointer":"not-allowed",
+                  transition:"all .2s"
+                }}>
+                <span style={{
+                  position:"absolute",top:2,left:config.features[f.key]?22:2,
+                  width:18,height:18,borderRadius:"50%",background:"#fff",
+                  transition:"left .2s"
+                }} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Setup guide */}
+      {!hasKey && (
+        <div className="glass glass-gold" style={{padding:"18px 20px"}}>
+          <p style={{fontSize:11,letterSpacing:".08em",textTransform:"uppercase",color:"var(--gold)",fontWeight:500,marginBottom:10}}>Como activar la IA</p>
+          <ol style={{fontSize:12,color:"var(--txt2)",lineHeight:2,paddingLeft:18}}>
+            <li>Crea cuenta en <strong style={{color:"var(--txt)"}}>console.anthropic.com</strong></li>
+            <li>Carga creditos (minimo $5 USD - te dura semanas con uso normal)</li>
+            <li>Genera una API key en Settings → API Keys de Anthropic</li>
+            <li>Pegala en CloserAI: <strong style={{color:"var(--txt)"}}>Settings → API Keys → Anthropic</strong></li>
+            <li>Volve aqui y activa las funciones que quieras</li>
+          </ol>
+          <p style={{fontSize:11,color:"var(--txt3)",marginTop:14,paddingTop:12,borderTop:".5px solid var(--gold-b)"}}>
+            Estimacion: setter promedio gasta ~$2-3 USD/mes en API. Mucho mas barato que Claude Pro ($20) o Max ($100).
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── AI ENHANCE BUTTON (componente reusable) ──────────────────────────────────
+function AiEnhanceButton({
+  feature, systemPrompt, userPrompt, workspaceId, model="claude-sonnet-4-6",
+  onResult, label="Mejorar con IA"
+}:{
+  feature:string; systemPrompt:string; userPrompt:string; workspaceId:string;
+  model?:string; onResult:(text:string,cost:number)=>void; label?:string;
+}) {
+  const [loading,setLoading] = useState(false);
+  const toast = useToast();
+  const config = useAiConfig(workspaceId);
+
+  if(!config.enabled) return null;
+
+  async function run() {
+    setLoading(true);
+    const result = await callClaude(workspaceId, feature, systemPrompt, userPrompt, model);
+    setLoading(false);
+    if(result.success && result.text) {
+      onResult(result.text, result.cost||0);
+      toast(`IA: $${(result.cost||0).toFixed(4)}`,"ok");
+    } else {
+      toast(result.error||"Error en IA","err");
+    }
+  }
+
+  return (
+    <button onClick={run} disabled={loading}
+      style={{
+        padding:"7px 14px",borderRadius:8,
+        border:".5px solid rgba(124,58,237,.4)",
+        background:"linear-gradient(135deg, rgba(124,58,237,.15), rgba(167,139,250,.08))",
+        color:"#a78bfa",
+        fontSize:12,fontWeight:500,cursor:loading?"wait":"pointer",
+        fontFamily:"'DM Sans',sans-serif",
+        display:"inline-flex",alignItems:"center",gap:6
+      }}>
+      {loading ? "Pensando..." : <>✦ {label}</>}
+    </button>
+  );
+}
+
 
 function mockProspectorLeads(src: ApifySource, inp: Record<string,string>, wsId: string): Lead[] {
   const mk = (name:string,role:string,company:string,score:number,temp:"Hot"|"Warm"|"Frio",extra?:Partial<Lead>):Lead => ({
@@ -1792,7 +2269,7 @@ const RESPONSE_TEMPLATES = {
 };
 
 // ── REDACCION IA v8 ───────────────────────────────────────────────────────────
-function RedaccionIA({leads}:{leads:Lead[]}) {
+function RedaccionIA({leads,workspaceId}:{leads:Lead[];workspaceId:string}) {
   const [selectedLead,setSelectedLead] = useState<Lead|null>(null);
   const [mode,setMode] = useState<"generar"|"plantillas">("plantillas");
   const [templateCat,setTemplateCat] = useState<keyof typeof RESPONSE_TEMPLATES>("primer_contacto");
@@ -1901,6 +2378,16 @@ function RedaccionIA({leads}:{leads:Lead[]}) {
                 <div style={{display:"flex",gap:8}}>
                   <button className="btn btn-ghost" style={{flex:1,fontSize:12}} onClick={()=>{navigator.clipboard.writeText(msg);toast("Copiado","ok");}}>Copiar</button>
                   <button className="btn btn-ghost" style={{flex:1,fontSize:12}} onClick={()=>setMsg("")}>Limpiar</button>
+                </div>
+                <div style={{marginTop:10}}>
+                  <AiEnhanceButton
+                    feature="redaccion"
+                    workspaceId={workspaceId}
+                    systemPrompt="Sos un copywriter experto en outbound B2B y prospeccion. Tu trabajo es mejorar mensajes de prospeccion para hacerlos mas naturales, especificos al lead y con mas chance de respuesta. Manteene el tono profesional pero humano. NO uses emojis salvo que el original los tenga. Manteene la longitud similar."
+                    userPrompt={`Lead: ${selectedLead?.name||"sin lead"} - ${selectedLead?.role||""} en ${selectedLead?.company||""}.\nMensaje actual:\n\n${msg}\n\nDevolveme SOLO el mensaje mejorado, sin explicaciones ni prefijos.`}
+                    onResult={(text)=>setMsg(text.trim())}
+                    label="Mejorar con Claude"
+                  />
                 </div>
               </div>
             )}
@@ -2094,7 +2581,7 @@ function Pipeline({leads,onLeadClick,onAddLead}:{leads:Lead[];onLeadClick:(l:Lea
 }
 
 // ── INBOX v8 (con templates de respuesta rapida) ──────────────────────────────
-function Inbox({leads}:{leads:Lead[]}) {
+function Inbox({leads,workspaceId}:{leads:Lead[];workspaceId:string}) {
   const [sel,setSel] = useState<Lead|null>(null);
   const [resp,setResp] = useState("");
   const [analysis,setAnalysis] = useState<{type:string;color:string;action:string;template:string}|null>(null);
@@ -2155,9 +2642,31 @@ function Inbox({leads}:{leads:Lead[]}) {
             <label style={{display:"block",fontSize:10,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:6,fontWeight:500}}>Pegar respuesta recibida</label>
             <textarea className="inp" style={{minHeight:120,resize:"vertical",lineHeight:1.6}} value={resp} onChange={e=>setResp(e.target.value)} placeholder="Copia y pega exactamente lo que te respondio el lead desde LinkedIn, Instagram, WhatsApp o Email..." />
           </div>
-          <button className="btn btn-primary" onClick={analyze} disabled={!resp||loading} style={{marginBottom:16}}>
-            {loading?"Analizando...":"Analizar respuesta"}
-          </button>
+          <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
+            <button className="btn btn-primary" onClick={analyze} disabled={!resp||loading}>
+              {loading?"Analizando...":"Analizar (rapido)"}
+            </button>
+            <AiEnhanceButton
+              feature="inbox"
+              workspaceId={workspaceId}
+              systemPrompt="Sos experto en sales psychology y closing. Analizas respuestas de leads y detectas: 1) sentiment real (positivo/negativo/neutral), 2) urgencia, 3) objeciones implicitas, 4) intent score 0-100. Devolves analisis breve + script de respuesta optimizado en formato:\n\nSENTIMENT: [tipo]\nINTENT SCORE: [0-100]\nOBJECCIONES: [lista corta]\nACCION RECOMENDADA: [una frase]\nSCRIPT DE RESPUESTA:\n[texto del mensaje a enviar]"
+              userPrompt={`Lead: ${sel?.name||"desconocido"} - ${sel?.role||""} - ${sel?.company||""}.\nRespuesta del lead:\n\n${resp}`}
+              onResult={(text)=>{
+                const scriptMatch = text.match(/SCRIPT DE RESPUESTA:\s*([\s\S]+)/i);
+                if(scriptMatch) setQuickReply(scriptMatch[1].trim());
+                const sentMatch = text.match(/SENTIMENT:\s*(\w+)/i);
+                const scoreMatch = text.match(/INTENT SCORE:\s*(\d+)/i);
+                const accionMatch = text.match(/ACCION RECOMENDADA:\s*([^\n]+)/i);
+                setAnalysis({
+                  type: sentMatch?.[1]?.toUpperCase()||"ANALIZADO",
+                  color: "#a78bfa",
+                  action: `${accionMatch?.[1]||""} ${scoreMatch?`(Intent: ${scoreMatch[1]}/100)`:""}`,
+                  template: scriptMatch?.[1]?.trim()||text
+                });
+              }}
+              label="Analisis profundo con Claude"
+            />
+          </div>
 
           {analysis&&(
             <div style={{display:"flex",flexDirection:"column",gap:12}}>
@@ -2503,7 +3012,7 @@ function AuthScreen({onAuth}:{onAuth:(u:User,m:Member,w:Workspace)=>void}) {
 
 // ── SIDEBAR ───────────────────────────────────────────────────────────────────
 
-function QualifyGate({leads,onScoreUpdate}:{leads:Lead[];onScoreUpdate:(id:string,score:number)=>void}) {
+function QualifyGate({leads,onScoreUpdate,workspaceId}:{leads:Lead[];onScoreUpdate:(id:string,score:number)=>void;workspaceId:string}) {
   const [sel,setSel]=useState<Lead|null>(null);
   const [ans,setAns]=useState({budget:"",authority:"",need:"",timeline:""});
   const qs=[
@@ -2549,6 +3058,24 @@ function QualifyGate({leads,onScoreUpdate}:{leads:Lead[];onScoreUpdate:(id:strin
               </div>
             </div>
           ))}
+          {sel&&(
+            <div style={{marginBottom:14}}>
+              <AiEnhanceButton
+                feature="qualify"
+                workspaceId={workspaceId}
+                systemPrompt="Sos un experto en sales qualification BANT. Recibis datos de un lead y devolves SOLO un numero entre 1 y 10 representando su BANT score, donde 10 = ideal customer profile listo para comprar, 1 = no es fit. Considerás: budget probable, autoridad de decision, necesidad real, urgencia/timeline. NO escribas explicaciones, SOLO el numero."
+                userPrompt={`Lead: ${sel.name}\nRol: ${sel.role}\nEmpresa: ${sel.company}\nTemperatura actual: ${sel.temp}\nEtapa: ${sel.stage}\nNotas: ${sel.notes||"sin notas"}\nUltima accion: ${sel.last_action||"ninguna"}\nProxima accion: ${sel.next_action||"ninguna"}\n\nDevolveme el BANT score (1-10):`}
+                onResult={(text)=>{
+                  const num = parseInt(text.trim().match(/\d+/)?.[0]||"0");
+                  if(num>=1&&num<=10) {
+                    onScoreUpdate(sel.id,num);
+                    toast(`IA: ${sel.name} = ${num}/10`,"ok");
+                  }
+                }}
+                label="Calcular score con Claude (automatico)"
+              />
+            </div>
+          )}
           {score!==null&&(
             <div className="glass glass-gold" style={{padding:"20px 22px",marginTop:8}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -2620,19 +3147,29 @@ const NAV_V8 = [
   {id:"metrics",   label:"Metricas",         icon:"⊞"},
   {id:"knowledge", label:"Conocimiento",     icon:"◻"},
   {id:"team",      label:"Equipo",           icon:"◈", adminOnly:true},
+  {id:"ai",        label:"IA Avanzada",      icon:"✦", adminOnly:true},
   {id:"settings",  label:"API Keys",         icon:"⚙", adminOnly:true},
 ] as const;
 
-function Sidebar({active,onChange,appUser,leadsCount,inboundCount}:{
+function Sidebar({active,onChange,appUser,leadsCount,inboundCount,isOpen,onClose}:{
   active:string;onChange:(id:string)=>void;appUser:AppUser;leadsCount:number;inboundCount:number;
+  isOpen:boolean;onClose:()=>void;
 }) {
   const isAdmin=appUser.member.role==="admin";
   const navItems=NAV_V8.filter(n=>!("adminOnly" in n&&n.adminOnly)||isAdmin);
+
+  function handleNav(id:string) {
+    onChange(id);
+    onClose();
+  }
+
   return (
-    <aside style={{width:"var(--sidebar-w)",minHeight:"100vh",flexShrink:0,background:"rgba(6,8,14,0.97)",borderRight:".5px solid var(--border)",display:"flex",flexDirection:"column",backdropFilter:"blur(20px)"}}>
+    <>
+      <div className={`sidebar-overlay ${isOpen?"open":""}`} onClick={onClose} />
+      <aside className={`sidebar-mobile ${isOpen?"open":""}`} style={{width:"var(--sidebar-w)",minHeight:"100vh",flexShrink:0,background:"rgba(6,8,14,0.97)",borderRight:".5px solid var(--border)",display:"flex",flexDirection:"column",backdropFilter:"blur(20px)"}}>
       <div style={{padding:"20px 20px 14px",borderBottom:".5px solid var(--border)"}}>
         <p className="display" style={{fontSize:22,fontWeight:300,letterSpacing:"-0.01em",lineHeight:1}}>Closer<span style={{color:"var(--gold)"}}>AI</span></p>
-        <p style={{fontSize:10,color:"var(--txt3)",marginTop:4,letterSpacing:".1em",textTransform:"uppercase"}}>v8 - B2B Engine</p>
+        <p style={{fontSize:10,color:"var(--txt3)",marginTop:4,letterSpacing:".1em",textTransform:"uppercase"}}>v9 - B2B Engine</p>
       </div>
       <div style={{padding:"10px 14px",borderBottom:".5px solid var(--border)"}}>
         <p style={{fontSize:9,letterSpacing:".08em",textTransform:"uppercase",color:"var(--txt3)",marginBottom:4,fontWeight:500}}>Workspace</p>
@@ -2650,7 +3187,7 @@ function Sidebar({active,onChange,appUser,leadsCount,inboundCount}:{
       <nav style={{flex:1,padding:"8px 10px",overflowY:"auto"}}>
         <div style={{display:"flex",flexDirection:"column",gap:1}}>
           {navItems.map(item=>(
-            <div key={item.id} className={`nav-item ${active===item.id?"active":""}`} onClick={()=>onChange(item.id)}>
+            <div key={item.id} className={`nav-item ${active===item.id?"active":""}`} onClick={()=>handleNav(item.id)}>
               <span className="nav-icon">{item.icon}</span>
               <span>{item.label}</span>
               {item.id==="inbound"&&inboundCount>0&&(
@@ -2666,19 +3203,21 @@ function Sidebar({active,onChange,appUser,leadsCount,inboundCount}:{
         <span className="pill pill-gold" style={{fontSize:11}}>{leadsCount}</span>
       </div>
     </aside>
+    </>
   );
 }
 
-function TopBar({activeTab,onAddLead,onLogout,onSetup}:{activeTab:string;onAddLead:()=>void;onLogout:()=>void;onSetup:()=>void}) {
+function TopBar({activeTab,onAddLead,onLogout,onSetup,onMenuClick}:{activeTab:string;onAddLead:()=>void;onLogout:()=>void;onSetup:()=>void;onMenuClick:()=>void}) {
   const label=NAV_V8.find(n=>n.id===activeTab)?.label||"";
   return (
-    <header style={{height:52,flexShrink:0,borderBottom:".5px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 28px",background:"rgba(7,9,15,.85)",backdropFilter:"blur(12px)"}}>
+    <header className="topbar-mobile" style={{height:52,flexShrink:0,borderBottom:".5px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 28px",background:"rgba(7,9,15,.85)",backdropFilter:"blur(12px)"}}>
       <div style={{display:"flex",gap:8,alignItems:"center"}}>
-        <span style={{fontSize:12,color:"var(--txt3)"}}>CloserAI</span>
-        <span style={{fontSize:12,color:"var(--txt3)"}}>·</span>
-        <span style={{fontSize:12,color:"var(--txt2)"}}>{label}</span>
+        <button className="hamburger-btn" onClick={onMenuClick}>≡</button>
+        <span className="topbar-label" style={{fontSize:12,color:"var(--txt3)"}}>CloserAI</span>
+        <span className="topbar-label" style={{fontSize:12,color:"var(--txt3)"}}>·</span>
+        <span style={{fontSize:12,color:"var(--txt2)",fontWeight:500}}>{label}</span>
       </div>
-      <div style={{display:"flex",gap:10,alignItems:"center"}}>
+      <div className="topbar-btns" style={{display:"flex",gap:10,alignItems:"center"}}>
         <button className="btn btn-ghost" style={{fontSize:12,padding:"6px 12px"}} onClick={onSetup}>Mi negocio</button>
         <button className="btn btn-primary" style={{fontSize:12,padding:"6px 14px"}} onClick={onAddLead}>+ Nuevo lead</button>
         <button className="btn btn-ghost" style={{fontSize:12,padding:"6px 12px"}} onClick={onLogout}>Salir</button>
@@ -2689,6 +3228,7 @@ function TopBar({activeTab,onAddLead,onLogout,onSetup}:{activeTab:string;onAddLe
 
 function AppLayout({appUser,onLogout}:{appUser:AppUser;onLogout:()=>void}) {
   const [tab,setTab] = useState("session");
+  const [sidebarOpen,setSidebarOpen] = useState(false);
   const isAdmin=appUser.member.role==="admin";
   const [leads,setLeads] = useState<Lead[]>([
     {id:"1",workspace_id:appUser.workspace.id,name:"Maria Velazquez",role:"Founder",company:"StartupMX",score:10,temp:"Warm",stage:"Calificado",next_action:"Call hoy",linkedin_url:"https://linkedin.com/in/mvelazquez",email:"maria@startupmx.com",created_at:"2026-05-20"},
@@ -2728,22 +3268,23 @@ function AppLayout({appUser,onLogout}:{appUser:AppUser;onLogout:()=>void}) {
     closer:    <VistaCloser leads={leads} onLeadClick={setSelLead} />,
     buscador:  <Prospector onAddLead={addLead} workspaceId={appUser.workspace.id} />,
     import:    <CsvImport onImport={ls=>{ls.forEach(l=>addLead(l));}} workspaceId={appUser.workspace.id} />,
-    generar:   <RedaccionIA leads={leads} />,
+    generar:   <RedaccionIA leads={leads} workspaceId={appUser.workspace.id} />,
     email:     <EmailMarketing isAdmin={isAdmin} workspaceId={appUser.workspace.id} />,
     cadence:   <Cadences isAdmin={isAdmin} workspaceId={appUser.workspace.id} />,
-    inbox:     <Inbox leads={leads} />,
-    qualify:   <QualifyGate leads={leads} onScoreUpdate={(id,s)=>setLeads(p=>p.map(l=>l.id===id?{...l,score:s}:l))} />,
+    inbox:     <Inbox leads={leads} workspaceId={appUser.workspace.id} />,
+    qualify:   <QualifyGate leads={leads} onScoreUpdate={(id,s)=>setLeads(p=>p.map(l=>l.id===id?{...l,score:s}:l))} workspaceId={appUser.workspace.id} />,
     metrics:   <Metrics leads={leads} isAdmin={isAdmin} />,
     knowledge: <Knowledge isAdmin={isAdmin} workspaceId={appUser.workspace.id} />,
     team:      isAdmin?<TeamManagement workspace={appUser.workspace} members={[{id:"m1",workspace_id:appUser.workspace.id,user_id:appUser.supabaseUser.id,role:"admin",display_name:appUser.member.display_name||"Admin"}]} onInvite={()=>{}} />:null,
+    ai:        isAdmin?<AiSettings workspaceId={appUser.workspace.id} />:null,
     settings:  isAdmin?<ApiSettings workspaceId={appUser.workspace.id} />:null,
   };
 
   return (
     <div style={{display:"flex",height:"100vh",overflow:"hidden"}}>
-      <Sidebar active={tab} onChange={setTab} appUser={appUser} leadsCount={leads.length} inboundCount={inboundNew} />
-      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-        <TopBar activeTab={tab} onAddLead={()=>setAddOpen(true)} onLogout={onLogout} onSetup={()=>setShowSetup(true)} />
+      <Sidebar active={tab} onChange={setTab} appUser={appUser} leadsCount={leads.length} inboundCount={inboundNew} isOpen={sidebarOpen} onClose={()=>setSidebarOpen(false)} />
+      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",width:"100%"}}>
+        <TopBar activeTab={tab} onAddLead={()=>setAddOpen(true)} onLogout={onLogout} onSetup={()=>setShowSetup(true)} onMenuClick={()=>setSidebarOpen(p=>!p)} />
         <main style={{flex:1,overflow:"hidden"}}>{views[tab]||views["session"]}</main>
       </div>
       {selLead&&(
