@@ -243,42 +243,226 @@ const NAV = [
 ] as const;
 
 const API_SERVICES = [
-  // ── IA / LLMs ─────────────────────────────────────────────────────
-  {key:"anthropic",label:"Anthropic (Claude)",desc:"IA avanzada para mensajes y análisis",placeholder:"sk-ant-...",category:"ia"},
-  {key:"openai",label:"OpenAI",desc:"GPT-4, GPT-5 para generación",placeholder:"sk-...",category:"ia"},
-  {key:"openrouter",label:"OpenRouter",desc:"Acceso a 100+ modelos con una sola key",placeholder:"sk-or-v1-...",category:"ia"},
-  {key:"groq",label:"Groq",desc:"Llama 3.3 70B ultra rápido (gratis)",placeholder:"gsk_...",category:"ia"},
-  // ── Prospección ───────────────────────────────────────────────────
-  {key:"apify",label:"Apify",desc:"Scraping LinkedIn, Instagram, Facebook, Google Maps",placeholder:"apify_api_...",category:"prospect"},
-  {key:"apollo",label:"Apollo.io",desc:"Base de datos B2B con emails verificados",placeholder:"...",category:"prospect"},
-  {key:"phantombuster",label:"Phantombuster",desc:"Automatización LinkedIn DMs (de pago)",placeholder:"...",category:"prospect"},
-  // ── Email ─────────────────────────────────────────────────────────
-  {key:"resend",label:"Resend",desc:"Envío de emails (3000/mes gratis)",placeholder:"re_...",category:"email"},
-  {key:"sendgrid",label:"SendGrid",desc:"Email transaccional masivo",placeholder:"SG.",category:"email"},
-  // ── Comunicación ──────────────────────────────────────────────────
-  {key:"telegram_bot",label:"Telegram Bot",desc:"Alertas instantáneas (token del bot)",placeholder:"1234567:ABC-DEF...",category:"comm"},
-  {key:"telegram_chat",label:"Telegram Chat ID",desc:"Tu chat ID para recibir alertas",placeholder:"123456789",category:"comm"},
-  {key:"twilio_sid",label:"Twilio Account SID",desc:"WhatsApp Business / SMS",placeholder:"AC...",category:"comm"},
-  {key:"twilio_token",label:"Twilio Auth Token",desc:"Token de Twilio",placeholder:"...",category:"comm"},
-  {key:"whatsapp_token",label:"WhatsApp Cloud API",desc:"Meta WhatsApp Business token",placeholder:"EAAxxxx...",category:"comm"},
-  // ── Agendado ──────────────────────────────────────────────────────
-  {key:"calendly_url",label:"Calendly URL",desc:"Tu link público de Calendly",placeholder:"https://calendly.com/tu-usuario",category:"meet"},
-  {key:"cal_url",label:"Cal.com URL",desc:"Tu link público de Cal.com",placeholder:"https://cal.com/tu-usuario",category:"meet"},
-  // ── Automatización ────────────────────────────────────────────────
-  {key:"n8n",label:"n8n Webhook",desc:"Tu webhook de n8n para automatizaciones",placeholder:"https://your-n8n.com/webhook/...",category:"auto"},
-  {key:"make",label:"Make.com Webhook",desc:"Webhook de Make (Integromat)",placeholder:"https://hook.eu1.make.com/...",category:"auto"},
-  {key:"zapier",label:"Zapier Webhook",desc:"Catch hook de Zapier",placeholder:"https://hooks.zapier.com/...",category:"auto"},
-  {key:"webhook",label:"Webhook custom",desc:"Tu propio endpoint",placeholder:"https://...",category:"auto"},
+  // ── IA ────────────────────────────────────────────────────────────────────
+  {
+    key:"anthropic", label:"Anthropic (Claude)", category:"ia",
+    placeholder:"sk-ant-api03-...",
+    desc:"Genera secuencias de email, califica leads y redacta mensajes personalizados.",
+    how:"Ir a console.anthropic.com → API Keys → Create Key. Copiar y pegar acá.",
+    usedFor:["Generar secuencias con IA","Calificar leads","Redacción asistida"],
+    docsUrl:"https://console.anthropic.com/settings/keys",
+    required: false,
+  },
+  {
+    key:"openai", label:"OpenAI (GPT)", category:"ia",
+    placeholder:"sk-proj-...",
+    desc:"Alternativa a Claude para generación de contenido.",
+    how:"Ir a platform.openai.com → API Keys → Create new secret key.",
+    usedFor:["Generación de mensajes","Análisis de respuestas"],
+    docsUrl:"https://platform.openai.com/api-keys",
+    required: false,
+  },
+  {
+    key:"groq", label:"Groq (Llama 3 — Gratis)", category:"ia",
+    placeholder:"gsk_...",
+    desc:"Llama 3.3 70B ultra rápido. Plan gratuito generoso.",
+    how:"Ir a console.groq.com → API Keys → Create API Key.",
+    usedFor:["Generación rápida de mensajes","Alternativa gratuita a Claude"],
+    docsUrl:"https://console.groq.com/keys",
+    required: false,
+  },
+
+  // ── Email ─────────────────────────────────────────────────────────────────
+  {
+    key:"resend", label:"Resend", category:"email",
+    placeholder:"re_xxxxxxxxxxxxxxxxxxxx",
+    desc:"Envío de emails desde tu dominio propio. 3,000 emails/mes gratis. Mejor deliverability que Gmail para outreach.",
+    how:"1. Ir a resend.com → Sign up gratis\n2. Agregar y verificar tu dominio (comuniofficial.com) en DNS → 5 min\n3. API Keys → Create API Key → copiar acá\n4. El email se envía DESDE tu dominio, no desde resend.com",
+    usedFor:["Campañas de email outreach","Secuencias multi-paso","Envío masivo a leads"],
+    docsUrl:"https://resend.com/api-keys",
+    required: false,
+    badge:"Recomendado",
+  },
+  {
+    key:"gmail_user", label:"Gmail — Usuario", category:"email",
+    placeholder:"tuemail@gmail.com",
+    desc:"Tu dirección de Gmail para enviar emails. Límite: ~500/día.",
+    how:"Solo ingresá tu email de Gmail completo. También necesitás configurar gmail_pass con un App Password.",
+    usedFor:["Envío de emails via Gmail","Alternativa a Resend para volumen bajo"],
+    docsUrl:"https://myaccount.google.com/security",
+    required: false,
+  },
+  {
+    key:"gmail_pass", label:"Gmail — App Password", category:"email",
+    placeholder:"xxxx xxxx xxxx xxxx",
+    desc:"Contraseña de aplicación de Google (NO tu contraseña de Gmail). Se genera en tu cuenta de Google.",
+    how:"1. Ir a myaccount.google.com → Seguridad\n2. Activar verificación en 2 pasos (obligatorio)\n3. Buscar 'Contraseñas de aplicación'\n4. Seleccionar 'Correo' y tu dispositivo → Generar\n5. Copiar los 16 caracteres acá\nNOTA: Las credenciales de Gmail corren en Supabase Edge Functions — nunca llegan al browser.",
+    usedFor:["Auth del servidor de Gmail","Usado junto con gmail_user"],
+    docsUrl:"https://myaccount.google.com/apppasswords",
+    required: false,
+  },
+  {
+    key:"sendgrid", label:"SendGrid", category:"email",
+    placeholder:"SG.xxxxxxxxxxxxxxxxxxxxxxxx",
+    desc:"Plataforma de email masivo. 100 emails/día gratis forever. Ideal para volumen alto.",
+    how:"1. Ir a sendgrid.com → Create Account\n2. Settings → API Keys → Create API Key (Full Access)\n3. Copiar acá",
+    usedFor:["Emails masivos (+10k/mes)","Alternativa enterprise a Resend"],
+    docsUrl:"https://app.sendgrid.com/settings/api_keys",
+    required: false,
+  },
+
+  // ── WhatsApp ──────────────────────────────────────────────────────────────
+  {
+    key:"whatsapp_token", label:"WhatsApp — Token de acceso", category:"whatsapp",
+    placeholder:"EAAxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    desc:"Token de la Meta WhatsApp Cloud API. Permite enviar mensajes de texto a leads que tengan WhatsApp.",
+    how:"1. Ir a developers.facebook.com → My Apps → Crear App → Business\n2. Agregar producto 'WhatsApp'\n3. WhatsApp → API Setup → copiar el 'Temporary access token' (o generar permanente)\n4. Verificar número de teléfono sender\nREQUISITO: Cuenta de Meta Business verificada",
+    usedFor:["Campañas WhatsApp","Mensajes de seguimiento","Outreach directo"],
+    docsUrl:"https://developers.facebook.com/docs/whatsapp/cloud-api/get-started",
+    required: false,
+    badge:"Requiere cuenta Business",
+  },
+  {
+    key:"whatsapp_phone_id", label:"WhatsApp — Phone Number ID", category:"whatsapp",
+    placeholder:"123456789012345",
+    desc:"ID del número de WhatsApp Business desde el que se envían los mensajes. Se obtiene en el mismo panel de Meta.",
+    how:"En developers.facebook.com → tu App → WhatsApp → API Setup → copiar 'Phone number ID' (número bajo 'From')",
+    usedFor:["Identificar el número sender de WhatsApp"],
+    docsUrl:"https://developers.facebook.com/docs/whatsapp/cloud-api/get-started",
+    required: false,
+  },
+
+  // ── SMS ───────────────────────────────────────────────────────────────────
+  {
+    key:"twilio_sid", label:"Twilio — Account SID", category:"sms",
+    placeholder:"ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    desc:"ID de tu cuenta Twilio. Permite enviar SMS a cualquier número del mundo.",
+    how:"1. Ir a twilio.com → Sign up (trial gratis con $15 de crédito)\n2. Console → Account Info → copiar 'Account SID'\nNOTE: Con trial solo podés enviar a números verificados. Para producción, actualizá el plan.",
+    usedFor:["Campañas SMS","Mensajes de seguimiento por texto"],
+    docsUrl:"https://console.twilio.com/",
+    required: false,
+  },
+  {
+    key:"twilio_token", label:"Twilio — Auth Token", category:"sms",
+    placeholder:"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    desc:"Token de autenticación de Twilio. Va siempre junto al Account SID.",
+    how:"En twilio.com → Console → Account Info → copiar 'Auth Token' (hacé click en el ojo para verlo)",
+    usedFor:["Auth de Twilio para SMS"],
+    docsUrl:"https://console.twilio.com/",
+    required: false,
+  },
+  {
+    key:"twilio_from", label:"Twilio — Número sender", category:"sms",
+    placeholder:"+14155550000",
+    desc:"Tu número de Twilio desde el que se envían los SMS. Formato E.164 con + adelante.",
+    how:"En twilio.com → Phone Numbers → Manage → Active Numbers → copiar el número en formato +1XXXXXXXXXX",
+    usedFor:["Número de origen de los SMS enviados"],
+    docsUrl:"https://console.twilio.com/us1/develop/phone-numbers/manage/incoming",
+    required: false,
+  },
+
+  // ── LinkedIn ──────────────────────────────────────────────────────────────
+  {
+    key:"phantombuster", label:"Phantombuster", category:"linkedin",
+    placeholder:"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    desc:"Automatización de LinkedIn DMs. ADVERTENCIA: riesgo de restricción de cuenta. Usá con moderación.",
+    how:"1. Ir a phantombuster.com → Sign up\n2. Dashboard → API → copiar API Key\nUSO: CloserAI genera el mensaje, Phantombuster lo envía via scraper",
+    usedFor:["LinkedIn DMs automatizados (riesgo)","Alternativa: copiar/pegar asistido"],
+    docsUrl:"https://phantombuster.com/",
+    required: false,
+    badge:"⚠ Riesgo de ban",
+  },
+
+  // ── Prospección ───────────────────────────────────────────────────────────
+  {
+    key:"apify", label:"Apify", category:"prospect",
+    placeholder:"apify_api_xxxxxxxxxxxxxxxxxxxx",
+    desc:"Scraping de LinkedIn, Instagram, Facebook y Google Maps para extraer leads con email y teléfono.",
+    how:"1. Ir a apify.com → Sign up (free tier: $5 créditos/mes)\n2. Settings → Integrations → API tokens → Create token\n3. Copiar acá",
+    usedFor:["Prospector de leads (todas las fuentes)","Enriquecimiento de contactos"],
+    docsUrl:"https://console.apify.com/account/integrations",
+    required: false,
+  },
+  {
+    key:"apollo", label:"Apollo.io", category:"prospect",
+    placeholder:"xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    desc:"Base de datos B2B con 275M+ contactos verificados. Emails y teléfonos directos.",
+    how:"1. Ir a apollo.io → Sign up (plan gratis: 50 contactos/mes)\n2. Settings → Integrations → API → copiar API Key",
+    usedFor:["Búsqueda de contactos B2B","Enriquecimiento de leads","Verificación de emails"],
+    docsUrl:"https://developer.apollo.io/",
+    required: false,
+  },
+
+  // ── Agendado ──────────────────────────────────────────────────────────────
+  {
+    key:"calendly_url", label:"Calendly — URL pública", category:"meet",
+    placeholder:"https://calendly.com/tu-usuario/30min",
+    desc:"Tu link de Calendly para que leads agenden calls directamente desde los mensajes.",
+    how:"En calendly.com → copiá la URL de tu evento (ej: calendly.com/justin/30min)",
+    usedFor:["Link de agendado en emails","CTA de cierre en WhatsApp/SMS"],
+    docsUrl:"https://calendly.com/",
+    required: false,
+  },
+  {
+    key:"cal_url", label:"Cal.com — URL pública", category:"meet",
+    placeholder:"https://cal.com/tu-usuario/30min",
+    desc:"Alternativa open-source a Calendly. Auto-hosteable.",
+    how:"En cal.com → tu evento → copiar el link público",
+    usedFor:["Link de agendado en mensajes"],
+    docsUrl:"https://cal.com/",
+    required: false,
+  },
+
+  // ── Automatización ────────────────────────────────────────────────────────
+  {
+    key:"n8n", label:"n8n — Webhook", category:"auto",
+    placeholder:"https://tu-n8n.app/webhook/xxxxxxxx",
+    desc:"Tu webhook de n8n para disparar flujos automáticos cuando un lead responde o cambia de estado.",
+    how:"En n8n → nuevo flujo → nodo Webhook → copiar la URL del webhook de producción",
+    usedFor:["Automatizar seguimiento","Notificaciones al equipo","Integrar con CRM externo"],
+    docsUrl:"https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.webhook/",
+    required: false,
+  },
+  {
+    key:"make", label:"Make.com — Webhook", category:"auto",
+    placeholder:"https://hook.eu1.make.com/xxxxxxxx",
+    desc:"Webhook de Make (ex-Integromat) para automatizaciones avanzadas.",
+    how:"En Make → nuevo escenario → módulo Webhooks → Custom Webhook → copiar URL",
+    usedFor:["Automatización multi-paso","Integración con 1000+ apps"],
+    docsUrl:"https://www.make.com/en/help/tools/webhooks",
+    required: false,
+  },
+  {
+    key:"telegram_bot", label:"Telegram — Bot Token", category:"auto",
+    placeholder:"7123456789:AAHxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    desc:"Token de tu bot de Telegram para recibir alertas cuando un lead responde.",
+    how:"1. Abrir Telegram → buscar @BotFather\n2. /newbot → elegir nombre → copiar el token que te da",
+    usedFor:["Alertas de respuestas de leads","Notificaciones de campañas"],
+    docsUrl:"https://core.telegram.org/bots/tutorial",
+    required: false,
+  },
+  {
+    key:"telegram_chat", label:"Telegram — Chat ID", category:"auto",
+    placeholder:"123456789",
+    desc:"Tu Chat ID de Telegram donde el bot envía las alertas.",
+    how:"1. Con tu bot creado, escribirle cualquier mensaje\n2. Abrir: https://api.telegram.org/bot{TU_TOKEN}/getUpdates\n3. Copiar el 'id' dentro de 'chat'",
+    usedFor:["Destino de las alertas del bot"],
+    docsUrl:"https://core.telegram.org/bots/api#getting-updates",
+    required: false,
+  },
 ];
 
 const API_CATEGORIES = [
-  {id:"ia",label:"Inteligencia Artificial",icon:"✦"},
-  {id:"prospect",label:"Prospección",icon:"◉"},
-  {id:"email",label:"Email Marketing",icon:"✉"},
-  {id:"comm",label:"Comunicación",icon:"◐"},
-  {id:"meet",label:"Agendado de calls",icon:"◈"},
-  {id:"auto",label:"Automatización",icon:"⚙"},
+  {id:"email",     label:"Email",      icon:"✉",  desc:"Enviá campañas de email a tus leads"},
+  {id:"whatsapp",  label:"WhatsApp",   icon:"💬", desc:"Mensajes directos via Meta Cloud API"},
+  {id:"sms",       label:"SMS",        icon:"📱", desc:"SMS masivos via Twilio"},
+  {id:"linkedin",  label:"LinkedIn",   icon:"🔵", desc:"DMs asistidos o automatizados"},
+  {id:"ia",        label:"IA",         icon:"✦",  desc:"Genera mensajes y califica leads con IA"},
+  {id:"prospect",  label:"Prospección",icon:"◉",  desc:"Scrapers para encontrar leads y emails"},
+  {id:"meet",      label:"Agendado",   icon:"◈",  desc:"Links de Calendly / Cal.com"},
+  {id:"auto",      label:"Automatización",icon:"⚙",desc:"n8n, Make, Telegram webhooks"},
 ];
+
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 const uid = () => Math.random().toString(36).slice(2,9);
@@ -508,118 +692,894 @@ function Metrics({leads,isAdmin}:{leads:Lead[];isAdmin:boolean}) {
   );
 }
 
-// ── EMAIL MARKETING ───────────────────────────────────────────────────────────
-function EmailMarketing({isAdmin,workspaceId}:{isAdmin:boolean;workspaceId:string}) {
-  const [campaigns,setCampaigns] = useState<Campaign[]>([
-    {id:"1",workspace_id:workspaceId,name:"Outreach Founders Q2",subject:"[Nombre], ¿optimizaste tu prospección?",body:"Hola [Nombre],\n\nVi que estás trabajando en escalar...",status:"sent",sent_count:45,open_count:18,reply_count:6,created_at:new Date().toISOString()},
-    {id:"2",workspace_id:workspaceId,name:"Follow-up Cold Leads",subject:"Última vez que te escribo, [Nombre]",body:"",status:"draft",sent_count:0,open_count:0,reply_count:0,created_at:new Date().toISOString()},
-    {id:"3",workspace_id:workspaceId,name:"Re-engagement Mayo",subject:"¿Seguís buscando [beneficio]?",body:"",status:"scheduled",sent_count:0,open_count:0,reply_count:0,scheduled_at:new Date(Date.now()+86400000*2).toISOString(),created_at:new Date().toISOString()},
-  ]);
-  const [editing,setEditing] = useState<Campaign|null>(null);
-  const [isNew,setIsNew] = useState(false);
-  const toast = useToast();
+// ── OUTREACH HUB (Email · WhatsApp · SMS) ────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// CLOSERAI — OUTREACH HUB v4
+// Canales: Email (Resend/Gmail SMTP) · WhatsApp (Meta Cloud API) · SMS (Twilio)
+// Multi-campaña por lead · Baja/pausa por lead · Snapshot anti-borrado
+// API keys SOLO en localStorage — nunca en código ni .env ni GitHub
+// ══════════════════════════════════════════════════════════════════════════════
 
-  const statusStyle: Record<string,{bg:string;color:string;label:string}> = {
-    draft:     {bg:"var(--surface)",color:"var(--txt2)",label:"Borrador"},
-    scheduled: {bg:"var(--blue-m)",color:"var(--blue)",label:"Programada"},
-    sent:      {bg:"var(--em-m)",color:"var(--emerald)",label:"Enviada"},
-    paused:    {bg:"var(--red-m)",color:"var(--red)",label:"Pausada"},
+// ─── Tipos ────────────────────────────────────────────────────────────────────
+interface CampaignStep {
+  id: string; campaign_id: string; workspace_id: string;
+  step_number: number; delay_days: number;
+  channel: "email"|"whatsapp"|"sms";
+  subject: string; body: string;
+  ai_generated: boolean; status: "active"|"skip";
+}
+interface CampaignLead {
+  id: string; campaign_id: string; workspace_id: string; lead_id?: string;
+  lead_name: string; lead_email: string; lead_phone?: string;
+  lead_company?: string; lead_niche?: string; lead_audience?: number;
+  status: "pending"|"in_progress"|"completed"|"unsubscribed"|"bounced"|"paused";
+  current_step: number; added_at: string;
+}
+interface OutreachCampaign {
+  id: string; workspace_id: string; name: string;
+  channel: "email"|"whatsapp"|"sms"|"multi";
+  status: "draft"|"active"|"paused"|"completed";
+  sent_count: number; open_count: number; reply_count: number;
+  created_at: string;
+}
+
+// ─── Leer API key desde localStorage (NUNCA de .env) ─────────────────────────
+function getKey(wsId: string, svc: string): string|null {
+  try { const r = localStorage.getItem(`closer_apikeys_${wsId}`); return r ? JSON.parse(r)[svc]||null : null; }
+  catch { return null; }
+}
+
+// ─── Detectar proveedor de email configurado ─────────────────────────────────
+function detectEmailProvider(wsId: string): "resend"|"gmail"|"none" {
+  if (getKey(wsId,"resend"))       return "resend";
+  if (getKey(wsId,"gmail_user") && getKey(wsId,"gmail_pass")) return "gmail";
+  return "none";
+}
+
+// ─── Renderizar variables dinámicas ──────────────────────────────────────────
+function renderVars(text: string, lead: CampaignLead): string {
+  const aud  = lead.lead_audience || 100000;
+  const miem = Math.round(aud * 0.005);
+  const proj = `$${(miem * 20).toLocaleString("en-US")}`;
+  return text
+    .replace(/\[Nombre\]/gi,     lead.lead_name?.split(" ")[0] || "")
+    .replace(/\[Empresa\]/gi,    lead.lead_company || "")
+    .replace(/\[nicho\]/gi,      lead.lead_niche || "tu nicho")
+    .replace(/\[audiencia\]/gi,  aud.toLocaleString("en-US"))
+    .replace(/\[proyeccion\]/gi, proj);
+}
+
+// ─── HTML inline Gmail-compatible ────────────────────────────────────────────
+function buildHtml(body: string, lead: CampaignLead, fromName: string, fromEmail: string): string {
+  const aud  = lead.lead_audience || 100000;
+  const miem = Math.round(aud * 0.005);
+  const proj = `$${(miem * 20).toLocaleString("en-US")}`;
+  const hasProj = body.toLowerCase().includes("[proyeccion]") || body.includes("proyecci");
+  const rendered = renderVars(body, lead);
+  const paras = rendered.split("\n\n")
+    .map(p => `<p style="margin:0 0 18px 0;font-family:Georgia,serif;font-size:15px;line-height:1.7;color:#1a1a1a;">${p.replace(/\n/g,"<br>")}</p>`)
+    .join("");
+  const ecuacion = hasProj ? `
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f9f9f7;border-left:3px solid #1a1a1a;padding:14px 18px;margin:0 0 20px 0;">
+      <tr><td>
+        <p style="font-size:11px;color:#888;letter-spacing:0.08em;text-transform:uppercase;margin:0 0 10px 0;font-family:Arial,sans-serif;">Proyección conservadora</p>
+        <p style="margin:0 0 6px 0;font-family:Arial,sans-serif;font-size:13px;color:#555;">
+          <strong style="color:#0a0a0a;">${aud.toLocaleString("en-US")}</strong> seg × <strong style="color:#0a0a0a;">0.5%</strong> × <strong style="color:#0a0a0a;">$20/mes</strong>
+        </p>
+        <p style="margin:6px 0 0 0;font-family:Georgia,serif;font-size:22px;font-weight:700;color:#0a0a0a;">${proj} <span style="font-size:14px;font-weight:400;color:#555;">/ mes</span></p>
+        <p style="margin:4px 0 0 0;font-family:Arial,sans-serif;font-size:12px;color:#888;">${miem.toLocaleString("en-US")} miembros pagos estimados</p>
+      </td></tr>
+    </table>` : "";
+  return `<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="max-width:560px;padding:0;">
+    ${paras}${ecuacion}
+    <p style="margin:28px 0 0 0;padding-top:18px;border-top:1px solid #e8e8e8;font-size:12px;color:#999;font-family:Arial,sans-serif;">
+      <strong style="color:#1a1a1a;">${fromName}</strong><br>
+      <a href="mailto:${fromEmail}" style="color:#1a1a1a;text-decoration:none;">${fromEmail}</a>
+    </p>
+  </td></tr></table>`;
+}
+
+// ─── Enviar email vía Resend ──────────────────────────────────────────────────
+async function sendViaResend(key: string, to: string, subject: string, html: string, text: string, fromName: string, fromEmail: string): Promise<string> {
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {"Content-Type":"application/json","Authorization":`Bearer ${key}`},
+    body: JSON.stringify({from:`${fromName} <${fromEmail}>`, to:[to], subject, html, text, reply_to: fromEmail}),
+  });
+  if (!res.ok) { const e = await res.json(); throw new Error(e.message||"Resend error"); }
+  const d = await res.json();
+  return d.id;
+}
+
+// ─── Enviar email vía Gmail SMTP (relay a través de backend edge function) ────
+// NOTA: Gmail SMTP directo desde el browser está bloqueado por CORS.
+// El flujo correcto es: CloserAI → Supabase Edge Function → nodemailer/Gmail SMTP
+// La Edge Function lee GMAIL_USER y GMAIL_PASS de sus secrets (no en frontend)
+async function sendViaGmail(supabaseUrl: string, supabaseKey: string, to: string, subject: string, html: string, text: string, fromName: string, fromEmail: string): Promise<string> {
+  const res = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+    method: "POST",
+    headers: {"Content-Type":"application/json","Authorization":`Bearer ${supabaseKey}`},
+    body: JSON.stringify({to, subject, html, text, fromName, fromEmail}),
+  });
+  if (!res.ok) { const e = await res.json(); throw new Error(e.error||"Gmail edge fn error"); }
+  const d = await res.json();
+  return d.messageId || "gmail-sent";
+}
+
+// ─── Enviar WhatsApp vía Meta Cloud API ──────────────────────────────────────
+async function sendViaWhatsApp(token: string, phoneNumberId: string, to: string, body: string): Promise<string> {
+  // 'to' debe ser número en formato E.164 sin + (ej: 5491155550000)
+  const phone = to.replace(/\D/g,"");
+  const res = await fetch(`https://graph.facebook.com/v19.0/${phoneNumberId}/messages`, {
+    method: "POST",
+    headers: {"Content-Type":"application/json","Authorization":`Bearer ${token}`},
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      recipient_type:    "individual",
+      to:                phone,
+      type:              "text",
+      text:              {preview_url: false, body},
+    }),
+  });
+  if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message||"WhatsApp error"); }
+  const d = await res.json();
+  return d.messages?.[0]?.id || "wa-sent";
+}
+
+// ─── Enviar SMS vía Twilio ────────────────────────────────────────────────────
+async function sendViaTwilio(sid: string, token: string, to: string, body: string, from: string): Promise<string> {
+  const creds = btoa(`${sid}:${token}`);
+  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+    method: "POST",
+    headers: {"Content-Type":"application/x-www-form-urlencoded","Authorization":`Basic ${creds}`},
+    body: new URLSearchParams({To: to, From: from, Body: body}).toString(),
+  });
+  if (!res.ok) { const e = await res.json(); throw new Error(e.message||"Twilio error"); }
+  const d = await res.json();
+  return d.sid;
+}
+
+// ─── Generar secuencia con Claude ────────────────────────────────────────────
+async function generateWithAI(key: string, campName: string, nicho: string, count: number, channel: string): Promise<any[]> {
+  const channelHint = channel==="whatsapp" ? "WhatsApp (máx 160 chars, tono muy conversacional, sin formato HTML)"
+                    : channel==="sms"       ? "SMS (máx 140 chars, directo, sin saludos)"
+                    : "Email frío (máx 80 palabras, estilo humano, variables [Nombre][nicho][audiencia][proyeccion])";
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01"},
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514", max_tokens: 2000,
+      messages:[{role:"user",content:
+        `Secuencia de ${count} mensajes outreach frío para "${campName}", nicho "${nicho}", canal: ${channelHint}.
+Escalá urgencia entre pasos. Respondé SOLO JSON sin markdown:
+[{"step":1,"delay_days":0,"subject":"...","body":"..."},{"step":2,"delay_days":3,"subject":"...","body":"..."}]
+Para whatsapp/sms, "subject" puede ir vacío.`
+      }]
+    })
+  });
+  const d = await res.json();
+  return JSON.parse((d.content?.[0]?.text||"[]").replace(/```json|```/g,"").trim());
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// COMPONENTE PRINCIPAL
+// ══════════════════════════════════════════════════════════════════════════════
+function EmailMarketing({isAdmin, workspaceId}: {isAdmin:boolean; workspaceId:string}) {
+  // ── State ──────────────────────────────────────────────────────────────────
+  const [campaigns,    setCampaigns]    = useState<OutreachCampaign[]>([]);
+  const [steps,        setSteps]        = useState<Record<string,CampaignStep[]>>({});
+  const [campLeads,    setCampLeads]    = useState<Record<string,CampaignLead[]>>({});
+  const [crmLeads,     setCrmLeads]     = useState<Lead[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [activeCamp,   setActiveCamp]   = useState<OutreachCampaign|null>(null);
+  const [activeTab,    setActiveTab]    = useState<"steps"|"leads"|"stats">("steps");
+  // modales
+  const [newCampModal, setNewCampModal] = useState(false);
+  const [editStep,     setEditStep]     = useState<CampaignStep|null>(null);
+  const [isNewStep,    setIsNewStep]    = useState(false);
+  const [showLeadPick, setShowLeadPick] = useState(false);
+  const [showMoveModal,setShowMoveModal]= useState<CampaignLead|null>(null);
+  // form nueva campaña
+  const [nc,           setNc]           = useState({name:"",nicho:"",channel:"email" as "email"|"whatsapp"|"sms"|"multi",steps:3});
+  const [generatingAI, setGeneratingAI] = useState(false);
+  // envío
+  const [sending,      setSending]      = useState<string|null>(null);
+  const [selectedLeads,setSelectedLeads]= useState<string[]>([]);
+  // config envío
+  const [fromName,     setFromName]     = useState("Justin Jimenez");
+  const [fromEmail,    setFromEmail]    = useState("justin@comuniofficial.com");
+  const [showConfig,   setShowConfig]   = useState(false);
+
+  const toast         = useToast();
+  const emailProvider = detectEmailProvider(workspaceId);
+  const resendKey     = getKey(workspaceId,"resend");
+  const anthropicKey  = getKey(workspaceId,"anthropic");
+  const waToken       = getKey(workspaceId,"whatsapp_token");
+  const waPhoneId     = getKey(workspaceId,"whatsapp_phone_id");
+  const twilioSid     = getKey(workspaceId,"twilio_sid");
+  const twilioToken   = getKey(workspaceId,"twilio_token");
+  const twilioFrom    = getKey(workspaceId,"twilio_from");
+
+  const CHANNEL_META: Record<string,{label:string;icon:string;color:string}> = {
+    email:    {label:"Email",    icon:"✉",  color:"var(--blue)"},
+    whatsapp: {label:"WhatsApp", icon:"💬", color:"var(--emerald)"},
+    sms:      {label:"SMS",      icon:"📱", color:"var(--gold)"},
+    multi:    {label:"Multi",    icon:"⚡", color:"var(--txt2)"},
   };
 
-  function saveCampaign() {
-    if (!editing) return;
-    if (isNew) {
-      setCampaigns(p=>[{...editing,id:uid()},... p]);
-      toast("Campaña creada","ok");
-    } else {
-      setCampaigns(p=>p.map(c=>c.id===editing.id?editing:c));
-      toast("Campaña guardada","ok");
+  // ── Cargar todo desde Supabase ─────────────────────────────────────────────
+  useEffect(() => { loadAll(); }, [workspaceId]);
+
+  async function loadAll() {
+    setLoading(true);
+    try {
+      const [cR,sR,lR,crR] = await Promise.all([
+        supabase.from("campaigns").select("*").eq("workspace_id",workspaceId).order("created_at",{ascending:false}),
+        supabase.from("campaign_steps").select("*").eq("workspace_id",workspaceId).order("step_number"),
+        supabase.from("campaign_leads").select("*").eq("workspace_id",workspaceId).order("added_at",{ascending:false}),
+        supabase.from("leads").select("*").eq("workspace_id",workspaceId).limit(400),
+      ]);
+      if (cR.data) setCampaigns(cR.data);
+      if (sR.data) {
+        const m: Record<string,CampaignStep[]> = {};
+        sR.data.forEach((s:CampaignStep) => { if(!m[s.campaign_id]) m[s.campaign_id]=[]; m[s.campaign_id].push(s); });
+        setSteps(m);
+      }
+      if (lR.data) {
+        const m: Record<string,CampaignLead[]> = {};
+        lR.data.forEach((l:CampaignLead) => { if(!m[l.campaign_id]) m[l.campaign_id]=[]; m[l.campaign_id].push(l); });
+        setCampLeads(m);
+      }
+      if (crR.data) setCrmLeads(crR.data);
+    } catch { toast("Error cargando campañas","error"); }
+    setLoading(false);
+  }
+
+  // ── Crear campaña ──────────────────────────────────────────────────────────
+  async function createCampaign(withAI: boolean) {
+    if (!nc.name.trim()) return;
+    setGeneratingAI(withAI);
+    try {
+      const {data:camp,error} = await supabase.from("campaigns")
+        .insert({workspace_id:workspaceId,name:nc.name,channel:nc.channel,status:"draft",sent_count:0,open_count:0,reply_count:0})
+        .select().single();
+      if (error) throw error;
+      setCampaigns(p=>[camp,...p]);
+
+      if (withAI && anthropicKey && nc.nicho) {
+        const aiSteps = await generateWithAI(anthropicKey, nc.name, nc.nicho, nc.steps, nc.channel);
+        const rows = aiSteps.map(s=>({
+          campaign_id:s.campaign_id||camp.id, workspace_id:workspaceId,
+          step_number:s.step, delay_days:s.delay_days,
+          channel: nc.channel==="multi"?"email":nc.channel,
+          subject:s.subject||"", body:s.body||"",
+          ai_generated:true, status:"active",
+        })).map(r=>({...r,campaign_id:camp.id}));
+        const {data:ss} = await supabase.from("campaign_steps").insert(rows).select();
+        if (ss) setSteps(p=>({...p,[camp.id]:ss}));
+        toast(`✅ Campaña con ${aiSteps.length} pasos generados por IA`,"ok");
+      } else {
+        toast("Campaña creada — agregá pasos","ok");
+      }
+      setActiveCamp(camp); setActiveTab("steps");
+      setNewCampModal(false); setNc({name:"",nicho:"",channel:"email",steps:3});
+    } catch(e:any) { toast("Error: "+e.message,"error"); }
+    setGeneratingAI(false);
+  }
+
+  // ── Guardar paso ───────────────────────────────────────────────────────────
+  async function saveStep() {
+    if (!editStep || !activeCamp) return;
+    try {
+      if (isNewStep) {
+        const {data,error} = await supabase.from("campaign_steps")
+          .insert({...editStep,id:undefined,campaign_id:activeCamp.id,workspace_id:workspaceId})
+          .select().single();
+        if (error) throw error;
+        setSteps(p=>({...p,[activeCamp.id]:[...(p[activeCamp.id]||[]),data].sort((a,b)=>a.step_number-b.step_number)}));
+        toast("Paso agregado","ok");
+      } else {
+        await supabase.from("campaign_steps")
+          .update({subject:editStep.subject,body:editStep.body,delay_days:editStep.delay_days,step_number:editStep.step_number,channel:editStep.channel})
+          .eq("id",editStep.id);
+        setSteps(p=>({...p,[activeCamp.id]:p[activeCamp.id].map(s=>s.id===editStep.id?editStep:s)}));
+        toast("Paso guardado","ok");
+      }
+    } catch(e:any) { toast("Error: "+e.message,"error"); }
+    setEditStep(null);
+  }
+
+  // ── Eliminar paso ──────────────────────────────────────────────────────────
+  async function deleteStep(id:string) {
+    if (!activeCamp) return;
+    await supabase.from("campaign_steps").delete().eq("id",id);
+    setSteps(p=>({...p,[activeCamp.id]:p[activeCamp.id].filter(s=>s.id!==id)}));
+  }
+
+  // ── Agregar leads (snapshot) ───────────────────────────────────────────────
+  async function addLeads() {
+    if (!activeCamp || selectedLeads.length===0) return;
+    const existing = (campLeads[activeCamp.id]||[]).map(l=>l.lead_id);
+    const rows = crmLeads
+      .filter(l=>selectedLeads.includes(l.id) && !existing.includes(l.id))
+      .map(l=>({
+        campaign_id:activeCamp.id, workspace_id:workspaceId, lead_id:l.id,
+        lead_name:l.name, lead_email:l.email||"", lead_phone:l.phone||"",
+        lead_company:l.company||"", lead_niche:l.source||"",
+        lead_audience:l.score?l.score*1000:0, status:"pending", current_step:0,
+      }));
+    if (!rows.length) { toast("Todos ya están en la campaña","warn"); return; }
+    const {data,error} = await supabase.from("campaign_leads").insert(rows).select();
+    if (error) { toast("Error: "+error.message,"error"); return; }
+    setCampLeads(p=>({...p,[activeCamp.id]:[...(p[activeCamp.id]||[]),...(data||[])]}));
+    setShowLeadPick(false); setSelectedLeads([]);
+    toast(`✅ ${rows.length} leads agregados`,"ok");
+  }
+
+  // ── Cambiar estado de lead (pausa/baja/mover) ──────────────────────────────
+  async function updateLeadStatus(leadId:string, newStatus: CampaignLead["status"]) {
+    await supabase.from("campaign_leads").update({status:newStatus}).eq("id",leadId);
+    setCampLeads(p=>{
+      const updated: Record<string,CampaignLead[]> = {};
+      Object.keys(p).forEach(cid=>{ updated[cid]=p[cid].map(l=>l.id===leadId?{...l,status:newStatus}:l); });
+      return updated;
+    });
+    toast(`Lead ${newStatus==="unsubscribed"?"dado de baja":newStatus==="paused"?"pausado":"actualizado"}`,"ok");
+  }
+
+  // ── Mover lead a otra campaña ──────────────────────────────────────────────
+  async function moveLeadToCampaign(campLeadId:string, toCampId:string) {
+    const cl = Object.values(campLeads).flat().find(l=>l.id===campLeadId);
+    if (!cl) return;
+    // 1. Dar de baja de campaña actual
+    await supabase.from("campaign_leads").update({status:"completed"}).eq("id",campLeadId);
+    // 2. Agregar a la nueva campaña (snapshot)
+    const {data} = await supabase.from("campaign_leads").insert({
+      campaign_id:toCampId, workspace_id:workspaceId, lead_id:cl.lead_id,
+      lead_name:cl.lead_name, lead_email:cl.lead_email, lead_phone:cl.lead_phone,
+      lead_company:cl.lead_company, lead_niche:cl.lead_niche, lead_audience:cl.lead_audience,
+      status:"pending", current_step:0,
+    }).select().single();
+    if (data) {
+      setCampLeads(p=>({
+        ...p,
+        [cl.campaign_id]: p[cl.campaign_id].map(l=>l.id===campLeadId?{...l,status:"completed"}:l),
+        [toCampId]: [...(p[toCampId]||[]),data],
+      }));
     }
-    setEditing(null);
+    setShowMoveModal(null);
+    toast("Lead movido a la nueva campaña","ok");
   }
 
-  function newCampaign() {
-    setIsNew(true);
-    setEditing({id:"",workspace_id:workspaceId,name:"Nueva campaña",subject:"",body:"",status:"draft",sent_count:0,open_count:0,reply_count:0,created_at:new Date().toISOString()});
+  // ── Enviar paso a todos los leads activos ──────────────────────────────────
+  async function sendStep(step:CampaignStep) {
+    if (!activeCamp) return;
+    const targets = (campLeads[activeCamp.id]||[]).filter(
+      l => l.status!=="unsubscribed" && l.status!=="bounced" && l.status!=="completed"
+    );
+    if (!targets.length) { toast("Sin leads activos","error"); return; }
+
+    // Validar credenciales según canal
+    if (step.channel==="email" && emailProvider==="none") { toast("Configurá Resend o Gmail en API Keys","error"); return; }
+    if (step.channel==="whatsapp" && (!waToken||!waPhoneId))  { toast("Configurá WhatsApp Cloud API en API Keys","error"); return; }
+    if (step.channel==="sms" && (!twilioSid||!twilioToken))   { toast("Configurá Twilio en API Keys","error"); return; }
+
+    setSending(step.id);
+    let ok=0; let fail=0;
+
+    for (const cl of targets) {
+      try {
+        let providerId = "";
+
+        if (step.channel==="email") {
+          if (!cl.lead_email) { fail++; continue; }
+          const subject = renderVars(step.subject, cl);
+          const text    = renderVars(step.body, cl);
+          const html    = buildHtml(step.body, cl, fromName, fromEmail);
+          if (emailProvider==="resend" && resendKey) {
+            providerId = await sendViaResend(resendKey, cl.lead_email, subject, html, text, fromName, fromEmail);
+          } else if (emailProvider==="gmail") {
+            providerId = await sendViaGmail(
+              (import.meta as any).env?.VITE_SUPABASE_URL||"",
+              (import.meta as any).env?.VITE_SUPABASE_ANON_KEY||"",
+              cl.lead_email, subject, html, text, fromName, fromEmail
+            );
+          }
+        }
+
+        if (step.channel==="whatsapp") {
+          if (!cl.lead_phone) { fail++; continue; }
+          const body = renderVars(step.body, cl);
+          providerId = await sendViaWhatsApp(waToken!, waPhoneId!, cl.lead_phone, body);
+        }
+
+        if (step.channel==="sms") {
+          if (!cl.lead_phone) { fail++; continue; }
+          const body = renderVars(step.body, cl);
+          providerId = await sendViaTwilio(twilioSid!, twilioToken!, cl.lead_phone, body, twilioFrom||"");
+        }
+
+        ok++;
+        // Registrar en historial
+        supabase.from("campaign_messages").insert({
+          campaign_id:activeCamp.id, campaign_lead_id:cl.id,
+          step_id:step.id, workspace_id:workspaceId,
+          channel:step.channel, to_address:step.channel==="email"?cl.lead_email:cl.lead_phone,
+          subject:step.subject, body_preview:step.body.substring(0,200),
+          status:"sent", provider_id:providerId,
+        }).then(()=>{});
+        // Actualizar estado del lead
+        supabase.from("campaign_leads")
+          .update({status:"in_progress",current_step:step.step_number})
+          .eq("id",cl.id).then(()=>{});
+
+        await new Promise(r=>setTimeout(r,200));
+      } catch(e:any) {
+        console.error("Send error:",e.message);
+        fail++;
+      }
+    }
+
+    await supabase.rpc("refresh_campaign_metrics",{p_campaign_id:activeCamp.id});
+    await loadAll();
+    setSending(null);
+    if (fail===0) toast(`✅ ${ok} mensajes enviados — Paso ${step.step_number}`,"ok");
+    else toast(`${ok} enviados · ${fail} fallaron`,"warn");
   }
 
+  // ── UI helpers ─────────────────────────────────────────────────────────────
+  const campSteps = activeCamp ? (steps[activeCamp.id]||[]) : [];
+  const campLds   = activeCamp ? (campLeads[activeCamp.id]||[]) : [];
+  const fmtPct = (n:number,d:number) => d===0?"0%":`${Math.round(n/d*100)}%`;
+
+  // ─ Color canal
+  const chColor = (ch:string) => CHANNEL_META[ch]?.color||"var(--txt2)";
+  const chIcon  = (ch:string) => CHANNEL_META[ch]?.icon||"•";
+
+  // ─ Canales disponibles
+  const canSendEmail = emailProvider!=="none";
+  const canSendWA    = !!(waToken && waPhoneId);
+  const canSendSMS   = !!(twilioSid && twilioToken);
+
+  // ─── RENDER ────────────────────────────────────────────────────────────────
   return (
-    <div className="fade-up" style={{padding:"32px 36px",height:"100%",overflowY:"auto"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:28}}>
-        <div>
-          <h1 className="display" style={{fontSize:36,fontWeight:300,letterSpacing:"-0.01em"}}>Email Marketing</h1>
-          <p style={{fontSize:13,color:"var(--txt2)",marginTop:4}}>Campañas y secuencias de outreach</p>
+    <div className="fade-up" style={{display:"flex",height:"100%",overflow:"hidden"}}>
+
+      {/* ── Sidebar: lista campañas ── */}
+      <div style={{width:240,flexShrink:0,borderRight:".5px solid var(--border)",display:"flex",flexDirection:"column"}}>
+        <div style={{padding:"20px 14px 12px",borderBottom:".5px solid var(--border)"}}>
+          <p style={{fontSize:10,color:"var(--txt3)",textTransform:"uppercase",letterSpacing:".07em",marginBottom:10}}>Outreach Hub</p>
+          {/* Estado de proveedores */}
+          <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:12}}>
+            {[
+              {label:"Email",  ok:canSendEmail, detail:emailProvider==="gmail"?"Gmail":emailProvider==="resend"?"Resend":"—"},
+              {label:"WA",     ok:canSendWA,    detail:"Cloud API"},
+              {label:"SMS",    ok:canSendSMS,   detail:"Twilio"},
+            ].map(p=>(
+              <span key={p.label} style={{
+                fontSize:9,padding:"2px 7px",borderRadius:99,
+                background:p.ok?"var(--em-m)":"var(--surface)",
+                color:p.ok?"var(--emerald)":"var(--txt3)",
+                border:`.5px solid ${p.ok?"rgba(16,185,129,.25)":"var(--border)"}`,
+              }}>{p.ok?"✓":""} {p.label}</span>
+            ))}
+          </div>
+          {isAdmin && (
+            <button className="btn btn-primary" style={{width:"100%",fontSize:12}}
+              onClick={()=>setNewCampModal(true)}>
+              + Nueva campaña
+            </button>
+          )}
         </div>
-        {isAdmin&&<button className="btn btn-primary" onClick={newCampaign}>+ Nueva campaña</button>}
-      </div>
 
-      {/* Stats row */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,marginBottom:28}}>
-        <StatCard label="Campañas activas" value={`${campaigns.filter(c=>c.status!=="draft").length}`} accent="#C9A84C" />
-        <StatCard label="Total enviados" value={`${campaigns.reduce((a,c)=>a+c.sent_count,0)}`} accent="#10b981" />
-        <StatCard label="Tasa apertura" value={fmtPct(campaigns.reduce((a,c)=>a+c.open_count,0),campaigns.reduce((a,c)=>a+c.sent_count,0)||1)} accent="#6366f1" />
-        <StatCard label="Tasa respuesta" value={fmtPct(campaigns.reduce((a,c)=>a+c.reply_count,0),campaigns.reduce((a,c)=>a+c.sent_count,0)||1)} accent="#f59e0b" />
-      </div>
-
-      {/* Campaign list */}
-      <div style={{display:"flex",flexDirection:"column",gap:12}}>
-        {campaigns.map(c=>{
-          const ss = statusStyle[c.status];
-          return (
-            <div key={c.id} className="glass" style={{padding:"18px 22px",display:"flex",alignItems:"center",gap:20}}>
-              <div style={{flex:1}}>
-                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
-                  <p style={{fontWeight:500,fontSize:14}}>{c.name}</p>
-                  <span className="pill" style={{background:ss.bg,color:ss.color,border:`.5px solid ${ss.color}40`,fontSize:10}}>{ss.label}</span>
+        <div style={{flex:1,overflowY:"auto",padding:"8px 8px"}}>
+          {loading ? <p style={{fontSize:12,color:"var(--txt3)",padding:"14px 8px"}}>Cargando...</p>
+          : campaigns.length===0 ? <p style={{fontSize:12,color:"var(--txt3)",padding:"14px 8px"}}>Sin campañas</p>
+          : campaigns.map(c=>{
+            const meta = CHANNEL_META[c.channel]||CHANNEL_META.email;
+            const active = activeCamp?.id===c.id;
+            return (
+              <div key={c.id}
+                onClick={()=>{setActiveCamp(c);setActiveTab("steps");}}
+                style={{
+                  padding:"10px 11px",borderRadius:"var(--radius-sm)",cursor:"pointer",marginBottom:3,
+                  background:active?"var(--gold-m)":"transparent",
+                  border:`.5px solid ${active?"var(--gold-b)":"transparent"}`,
+                  transition:"all .15s",
+                }}>
+                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+                  <span style={{fontSize:12}}>{meta.icon}</span>
+                  <p style={{fontSize:12,fontWeight:active?500:400,color:active?"var(--gold)":"var(--txt)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{c.name}</p>
                 </div>
-                {c.subject&&<p style={{fontSize:12,color:"var(--txt2)",marginBottom:10}}>↳ {c.subject}</p>}
-                {c.status==="sent"&&(
-                  <div style={{display:"flex",gap:20}}>
-                    {[
-                      {l:"Enviados",v:c.sent_count,c:"var(--txt2)"},
-                      {l:"Abiertos",v:`${c.open_count} (${fmtPct(c.open_count,c.sent_count)})`,c:"var(--blue)"},
-                      {l:"Replies",v:`${c.reply_count} (${fmtPct(c.reply_count,c.sent_count)})`,c:"var(--emerald)"},
-                    ].map(item=>(
-                      <div key={item.l}>
-                        <p style={{fontSize:10,color:"var(--txt3)",textTransform:"uppercase",letterSpacing:".04em"}}>{item.l}</p>
-                        <p className="mono" style={{fontSize:15,fontWeight:300,color:item.c}}>{item.v}</p>
-                      </div>
-                    ))}
+                <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                  <span style={{fontSize:10,color:"var(--txt3)"}}>{(steps[c.id]||[]).length}p · {(campLeads[c.id]||[]).length}l</span>
+                  <span style={{fontSize:9,padding:"1px 5px",borderRadius:99,background:c.status==="active"?"var(--em-m)":"var(--surface)",color:c.status==="active"?"var(--emerald)":"var(--txt3)"}}>{c.status}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Config envío */}
+        <div style={{padding:"10px 12px",borderTop:".5px solid var(--border)"}}>
+          <button className="btn btn-ghost" style={{width:"100%",fontSize:11,padding:"6px"}}
+            onClick={()=>setShowConfig(true)}>
+            ⚙ Remitente
+          </button>
+        </div>
+      </div>
+
+      {/* ── Panel principal ── */}
+      <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}>
+        {!activeCamp ? (
+          <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:10,color:"var(--txt3)"}}>
+            <p style={{fontSize:28}}>⚡</p>
+            <p style={{fontSize:13}}>Seleccioná una campaña</p>
+            {!canSendEmail && !canSendWA && !canSendSMS && (
+              <p style={{fontSize:11,color:"var(--red)",marginTop:8,textAlign:"center",maxWidth:280}}>
+                ⚠ Sin proveedores conectados. Configurá Resend, Gmail, WhatsApp o Twilio en API Keys.
+              </p>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Header */}
+            <div style={{padding:"18px 24px 0",borderBottom:".5px solid var(--border)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
+                <div>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
+                    <span style={{fontSize:16}}>{chIcon(activeCamp.channel)}</span>
+                    <h2 className="display" style={{fontSize:20,fontWeight:300,letterSpacing:"-.01em"}}>{activeCamp.name}</h2>
+                    <span style={{fontSize:10,padding:"2px 8px",borderRadius:99,background:"var(--surface)",color:chColor(activeCamp.channel),border:`.5px solid ${chColor(activeCamp.channel)}40`}}>
+                      {CHANNEL_META[activeCamp.channel]?.label}
+                    </span>
+                  </div>
+                  <p style={{fontSize:11,color:"var(--txt3)"}}>{campSteps.length} pasos · {campLds.filter(l=>l.status!=="unsubscribed"&&l.status!=="completed").length} activos · {campLds.filter(l=>l.status==="unsubscribed").length} bajas</p>
+                </div>
+                {isAdmin && (
+                  <div style={{display:"flex",gap:6}}>
+                    <button className="btn btn-ghost" style={{fontSize:11,padding:"5px 11px"}}
+                      onClick={()=>{setShowLeadPick(true);setSelectedLeads([]);}}>+ Leads</button>
+                    <button className="btn btn-ghost" style={{fontSize:11,padding:"5px 11px"}}
+                      onClick={()=>{setIsNewStep(true);setEditStep({id:"",campaign_id:activeCamp.id,workspace_id:workspaceId,step_number:campSteps.length+1,delay_days:campSteps.length===0?0:3,channel:activeCamp.channel==="multi"?"email":activeCamp.channel as any,subject:"",body:"",ai_generated:false,status:"active"});}}>+ Paso</button>
                   </div>
                 )}
-                {c.scheduled_at&&c.status==="scheduled"&&(
-                  <p style={{fontSize:11,color:"var(--blue)"}}>⏱ Programada: {new Date(c.scheduled_at).toLocaleDateString("es-ES",{day:"numeric",month:"long",hour:"2-digit",minute:"2-digit"})}</p>
-                )}
               </div>
-              {isAdmin&&(
-                <div style={{display:"flex",gap:8,flexShrink:0}}>
-                  <button className="btn btn-ghost" style={{fontSize:12,padding:"6px 12px"}} onClick={()=>{setIsNew(false);setEditing(c);}}>Editar</button>
-                  {c.status==="draft"&&<button className="btn btn-emerald" style={{fontSize:12,padding:"6px 12px"}} onClick={()=>{setCampaigns(p=>p.map(x=>x.id===c.id?{...x,status:"scheduled"}:x));toast("Campaña programada","ok");}}>Programar</button>}
+              <div className="tab-bar" style={{width:260}}>
+                {(["steps","leads","stats"] as const).map(t=>(
+                  <button key={t} className={`tab-btn ${activeTab===t?"active":""}`} onClick={()=>setActiveTab(t)}>
+                    {t==="steps"?"Secuencia":t==="leads"?"Leads":"Stats"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{flex:1,overflowY:"auto",padding:"18px 24px"}}>
+
+              {/* ── SECUENCIA ── */}
+              {activeTab==="steps" && (
+                campSteps.length===0 ? (
+                  <div style={{textAlign:"center",padding:"36px 0",color:"var(--txt3)"}}>
+                    <p style={{marginBottom:14,fontSize:13}}>Sin pasos. Generá con IA o agregá manualmente.</p>
+                    {isAdmin && (
+                      <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
+                        {anthropicKey && <button className="btn btn-primary" style={{fontSize:12}} onClick={()=>setNewCampModal(true)}>✨ Generar con IA</button>}
+                        <button className="btn btn-ghost" style={{fontSize:12}}
+                          onClick={()=>{setIsNewStep(true);setEditStep({id:"",campaign_id:activeCamp.id,workspace_id:workspaceId,step_number:1,delay_days:0,channel:"email",subject:"",body:"",ai_generated:false,status:"active"});}}>
+                          + Paso manual
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{display:"flex",flexDirection:"column",gap:0}}>
+                    {campSteps.map((step,idx)=>{
+                      const canSend = (step.channel==="email"&&canSendEmail)||(step.channel==="whatsapp"&&canSendWA)||(step.channel==="sms"&&canSendSMS);
+                      const activeCount = campLds.filter(l=>l.status!=="unsubscribed"&&l.status!=="bounced"&&l.status!=="completed").length;
+                      return (
+                        <div key={step.id} style={{display:"flex",gap:0,marginBottom:0}}>
+                          <div style={{display:"flex",flexDirection:"column",alignItems:"center",width:36,flexShrink:0}}>
+                            <div style={{width:26,height:26,borderRadius:"50%",background:"var(--gold-m)",border:".5px solid var(--gold-b)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:500,color:"var(--gold)"}}>
+                              {step.step_number}
+                            </div>
+                            {idx<campSteps.length-1&&<div style={{width:1,flex:1,minHeight:20,background:"var(--border)",margin:"4px 0"}}/>}
+                          </div>
+                          <div className="glass" style={{flex:1,padding:"12px 16px",marginLeft:10,marginBottom:idx<campSteps.length-1?10:0}}>
+                            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
+                              <div style={{flex:1,minWidth:0}}>
+                                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5,flexWrap:"wrap"}}>
+                                  <span style={{fontSize:13}}>{chIcon(step.channel)}</span>
+                                  <span style={{fontSize:10,color:"var(--txt3)"}}>{step.delay_days===0?"Inmediato":`+${step.delay_days}d`}</span>
+                                  {step.ai_generated && <span className="pill pill-gold" style={{fontSize:9}}>✨ IA</span>}
+                                  {!canSend && <span style={{fontSize:9,color:"var(--red)"}}>Sin credencial</span>}
+                                </div>
+                                {step.subject && <p style={{fontWeight:500,fontSize:12,marginBottom:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{step.subject}</p>}
+                                <p style={{fontSize:11,color:"var(--txt2)",lineHeight:1.5,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{step.body?.substring(0,100)}...</p>
+                              </div>
+                              {isAdmin && (
+                                <div style={{display:"flex",gap:5,flexShrink:0}}>
+                                  <button className="btn btn-ghost" style={{fontSize:10,padding:"3px 8px"}}
+                                    onClick={()=>{setIsNewStep(false);setEditStep(step);}}>Editar</button>
+                                  <button className="btn btn-emerald"
+                                    style={{fontSize:10,padding:"3px 10px",opacity:sending===step.id?0.6:1}}
+                                    disabled={sending===step.id||!canSend||activeCount===0}
+                                    onClick={()=>sendStep(step)}>
+                                    {sending===step.id?"⟳":"▶"} {activeCount}
+                                  </button>
+                                  <button className="btn btn-danger" style={{fontSize:10,padding:"3px 7px"}}
+                                    onClick={()=>deleteStep(step.id)}>✕</button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {isAdmin && (
+                      <button className="btn btn-ghost" style={{fontSize:11,marginTop:10,alignSelf:"flex-start"}}
+                        onClick={()=>{setIsNewStep(true);setEditStep({id:"",campaign_id:activeCamp.id,workspace_id:workspaceId,step_number:campSteps.length+1,delay_days:3,channel:activeCamp.channel==="multi"?"email":activeCamp.channel as any,subject:"",body:"",ai_generated:false,status:"active"});}}>
+                        + Agregar paso
+                      </button>
+                    )}
+                  </div>
+                )
+              )}
+
+              {/* ── LEADS ── */}
+              {activeTab==="leads" && (
+                campLds.length===0 ? (
+                  <div style={{textAlign:"center",padding:"36px 0",color:"var(--txt3)"}}>
+                    <p style={{marginBottom:12,fontSize:13}}>Sin leads en esta campaña.</p>
+                    {isAdmin && <button className="btn btn-primary" style={{fontSize:12}} onClick={()=>{setShowLeadPick(true);setSelectedLeads([]);}}>+ Asignar leads</button>}
+                  </div>
+                ) : (
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                    {campLds.map(cl=>{
+                      const stCol = {pending:"var(--txt3)",in_progress:"var(--blue)",completed:"var(--emerald)",unsubscribed:"var(--red)",bounced:"var(--red)",paused:"var(--gold)"}[cl.status]||"var(--txt3)";
+                      const isActive = cl.status!=="unsubscribed"&&cl.status!=="completed"&&cl.status!=="bounced";
+                      return (
+                        <div key={cl.id} className="glass" style={{padding:"10px 14px",display:"flex",alignItems:"center",gap:12,opacity:isActive?1:0.6}}>
+                          <div style={{flex:1,minWidth:0}}>
+                            <p style={{fontWeight:500,fontSize:12}}>{cl.lead_name}</p>
+                            <p style={{fontSize:11,color:"var(--txt2)"}}>{cl.lead_email||cl.lead_phone} {cl.lead_niche&&`· ${cl.lead_niche}`}</p>
+                          </div>
+                          <div style={{textAlign:"right",flexShrink:0}}>
+                            <p style={{fontSize:10,color:stCol,fontWeight:500}}>{cl.status}</p>
+                            <p style={{fontSize:10,color:"var(--txt3)"}}>paso {cl.current_step}</p>
+                          </div>
+                          {isAdmin && isActive && (
+                            <div style={{display:"flex",gap:4,flexShrink:0}}>
+                              {/* Mover a otra campaña */}
+                              <button className="btn btn-ghost" style={{fontSize:10,padding:"3px 8px"}}
+                                title="Mover a otra campaña"
+                                onClick={()=>setShowMoveModal(cl)}>↗</button>
+                              {/* Pausar */}
+                              <button className="btn btn-ghost" style={{fontSize:10,padding:"3px 8px"}}
+                                onClick={()=>updateLeadStatus(cl.id, cl.status==="paused"?"pending":"paused")}>
+                                {cl.status==="paused"?"▶":"⏸"}
+                              </button>
+                              {/* Dar de baja */}
+                              <button className="btn btn-danger" style={{fontSize:10,padding:"3px 7px"}}
+                                title="Dar de baja"
+                                onClick={()=>updateLeadStatus(cl.id,"unsubscribed")}>✕</button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )
+              )}
+
+              {/* ── STATS ── */}
+              {activeTab==="stats" && (
+                <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:12}}>
+                  {[
+                    {l:"Leads totales",   v:campLds.length,                                              c:"var(--gold)"},
+                    {l:"Activos",         v:campLds.filter(l=>l.status==="in_progress"||l.status==="pending").length, c:"var(--blue)"},
+                    {l:"Enviados",        v:activeCamp.sent_count,                                       c:"var(--txt)"},
+                    {l:"Abiertos",        v:`${activeCamp.open_count} (${fmtPct(activeCamp.open_count,activeCamp.sent_count)})`, c:"var(--blue)"},
+                    {l:"Respondieron",    v:`${activeCamp.reply_count} (${fmtPct(activeCamp.reply_count,activeCamp.sent_count)})`, c:"var(--emerald)"},
+                    {l:"Completados",     v:campLds.filter(l=>l.status==="completed").length,            c:"var(--emerald)"},
+                    {l:"Pausados",        v:campLds.filter(l=>l.status==="paused").length,               c:"var(--gold)"},
+                    {l:"Bajas / Rebotes", v:campLds.filter(l=>l.status==="unsubscribed"||l.status==="bounced").length, c:"var(--red)"},
+                  ].map(item=>(
+                    <div key={item.l} className="glass" style={{padding:"14px 16px"}}>
+                      <p style={{fontSize:10,color:"var(--txt3)",textTransform:"uppercase",letterSpacing:".04em",marginBottom:6}}>{item.l}</p>
+                      <p className="mono" style={{fontSize:20,fontWeight:300,color:item.c}}>{item.v}</p>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
-          );
-        })}
+          </>
+        )}
       </div>
 
-      {/* Edit Modal */}
-      <Modal open={!!editing} onClose={()=>setEditing(null)} title={isNew?"Nueva campaña":"Editar campaña"} width={620}>
-        {editing&&(<>
-          <Field label="Nombre de la campaña">
-            <input className="inp" value={editing.name} onChange={e=>setEditing(p=>p?{...p,name:e.target.value}:p)} />
+      {/* ════ MODALES ════ */}
+
+      {/* Nueva campaña */}
+      <Modal open={newCampModal} onClose={()=>setNewCampModal(false)} title="Nueva campaña" width={480}>
+        <Field label="Nombre">
+          <input className="inp" value={nc.name} onChange={e=>setNc(p=>({...p,name:e.target.value}))} placeholder="Outreach Influencers LATAM Q3"/>
+        </Field>
+        <Field label="Canal principal">
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {(["email","whatsapp","sms","multi"] as const).map(ch=>{
+              const meta = CHANNEL_META[ch];
+              const avail = ch==="email"?canSendEmail:ch==="whatsapp"?canSendWA:ch==="sms"?canSendSMS:true;
+              return (
+                <button key={ch}
+                  className={`btn ${nc.channel===ch?"btn-primary":"btn-ghost"}`}
+                  style={{fontSize:12,padding:"6px 14px",opacity:avail?1:0.45}}
+                  onClick={()=>setNc(p=>({...p,channel:ch}))}>
+                  {meta.icon} {meta.label} {!avail&&"(sin key)"}
+                </button>
+              );
+            })}
+          </div>
+        </Field>
+        <Field label="Nicho (para IA)">
+          <input className="inp" value={nc.nicho} onChange={e=>setNc(p=>({...p,nicho:e.target.value}))} placeholder="finanzas, fitness, emprendimiento..."/>
+        </Field>
+        {anthropicKey && (
+          <Field label={`Pasos de secuencia: ${nc.steps}`}>
+            <input type="range" min={1} max={6} value={nc.steps} onChange={e=>setNc(p=>({...p,steps:Number(e.target.value)}))} style={{width:"100%"}}/>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"var(--txt3)",marginTop:3}}>
+              {[1,2,3,4,5,6].map(n=><span key={n} style={{color:n===nc.steps?"var(--gold)":"inherit",fontWeight:n===nc.steps?600:400}}>{n}</span>)}
+            </div>
           </Field>
-          <Field label="Asunto del email">
-            <input className="inp" value={editing.subject||""} onChange={e=>setEditing(p=>p?{...p,subject:e.target.value}:p)} placeholder="Ej: [Nombre], ¿optimizaste tu prospección?" />
+        )}
+        <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:16,flexWrap:"wrap"}}>
+          <button className="btn btn-ghost" onClick={()=>setNewCampModal(false)}>Cancelar</button>
+          <button className="btn btn-ghost" disabled={!nc.name||generatingAI} onClick={()=>createCampaign(false)}>Crear vacía</button>
+          {anthropicKey && <button className="btn btn-primary" disabled={!nc.name||!nc.nicho||generatingAI} onClick={()=>createCampaign(true)}>
+            {generatingAI?"✨ Generando...":"✨ Crear con IA"}
+          </button>}
+        </div>
+        {!anthropicKey && <p style={{fontSize:11,color:"var(--txt3)",marginTop:8,textAlign:"center"}}>Configurá Anthropic API Key para generación con IA.</p>}
+      </Modal>
+
+      {/* Editar paso */}
+      <Modal open={!!editStep} onClose={()=>setEditStep(null)} title={isNewStep?"Agregar paso":"Editar paso"} width={580}>
+        {editStep&&(<>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+            <Field label="Paso #">
+              <input className="inp" type="number" min={1} value={editStep.step_number}
+                onChange={e=>setEditStep(p=>p?{...p,step_number:Number(e.target.value)}:p)}/>
+            </Field>
+            <Field label="Días de espera">
+              <input className="inp" type="number" min={0} value={editStep.delay_days}
+                onChange={e=>setEditStep(p=>p?{...p,delay_days:Number(e.target.value)}:p)} placeholder="0"/>
+            </Field>
+            <Field label="Canal">
+              <select className="inp" value={editStep.channel} onChange={e=>setEditStep(p=>p?{...p,channel:e.target.value as any}:p)}>
+                <option value="email">✉ Email</option>
+                <option value="whatsapp">💬 WhatsApp</option>
+                <option value="sms">📱 SMS</option>
+              </select>
+            </Field>
+          </div>
+          {editStep.channel==="email" && (
+            <Field label="Asunto">
+              <input className="inp" value={editStep.subject}
+                onChange={e=>setEditStep(p=>p?{...p,subject:e.target.value}:p)}
+                placeholder="Re: [Nombre], ¿y si centralizamos tu comunidad de [nicho]?"/>
+            </Field>
+          )}
+          <Field label={editStep.channel==="email"?"Cuerpo (HTML se genera automático)":editStep.channel==="whatsapp"?"Mensaje WhatsApp (máx 1024 chars)":"SMS (máx 160 chars)"}>
+            <textarea className="inp" style={{minHeight:editStep.channel==="email"?150:80,resize:"vertical",lineHeight:1.7}}
+              value={editStep.body}
+              onChange={e=>setEditStep(p=>p?{...p,body:e.target.value}:p)}
+              placeholder={editStep.channel==="email"?"[Nombre],\n\nVi lo que estás construyendo con tu audiencia de [nicho]...":editStep.channel==="whatsapp"?"Hola [Nombre] 👋 Vi que tenés [audiencia] seguidores en [nicho]...":"[Nombre], tu comunidad puede generar [proyeccion]/mes. ¿Hablamos?"}/>
           </Field>
-          <Field label="Cuerpo del email">
-            <textarea className="inp" style={{minHeight:160,resize:"vertical",lineHeight:1.7}} value={editing.body||""} onChange={e=>setEditing(p=>p?{...p,body:e.target.value}:p)} placeholder="Usá [Nombre], [Empresa] como variables dinámicas..." />
-          </Field>
-          <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:8}}>
-            <button className="btn btn-ghost" onClick={()=>setEditing(null)}>Cancelar</button>
-            <button className="btn btn-primary" onClick={saveCampaign}>Guardar</button>
+          <p style={{fontSize:10,color:"var(--txt3)",marginBottom:10}}>
+            Variables: {["[Nombre]","[Empresa]","[nicho]","[audiencia]","[proyeccion]"].map(v=><code key={v} style={{color:"var(--gold)",marginRight:5}}>{v}</code>)}
+          </p>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+            <button className="btn btn-ghost" onClick={()=>setEditStep(null)}>Cancelar</button>
+            <button className="btn btn-primary" onClick={saveStep}>Guardar</button>
           </div>
         </>)}
       </Modal>
+
+      {/* Lead picker */}
+      <Modal open={showLeadPick} onClose={()=>setShowLeadPick(false)} title="Asignar leads a la campaña" width={560}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
+          <p style={{fontSize:12,color:"var(--txt2)"}}>{crmLeads.filter(l=>l.email||l.phone).length} leads disponibles</p>
+          <div style={{display:"flex",gap:6}}>
+            <button className="btn btn-ghost" style={{fontSize:10,padding:"3px 9px"}} onClick={()=>setSelectedLeads(crmLeads.filter(l=>l.email||l.phone).map(l=>l.id))}>Todos</button>
+            <button className="btn btn-ghost" style={{fontSize:10,padding:"3px 9px"}} onClick={()=>setSelectedLeads([])}>Limpiar</button>
+          </div>
+        </div>
+        <div style={{maxHeight:260,overflowY:"auto",display:"flex",flexDirection:"column",gap:5,marginBottom:12}}>
+          {crmLeads.filter(l=>l.email||l.phone).map(lead=>{
+            const sel = selectedLeads.includes(lead.id);
+            const already = (campLeads[activeCamp?.id||""]||[]).some(cl=>cl.lead_id===lead.id && cl.status!=="completed");
+            return (
+              <div key={lead.id}
+                onClick={()=>!already&&setSelectedLeads(p=>sel?p.filter(x=>x!==lead.id):[...p,lead.id])}
+                style={{display:"flex",alignItems:"center",gap:10,padding:"8px 11px",borderRadius:"var(--radius-sm)",cursor:already?"default":"pointer",opacity:already?0.45:1,background:sel?"var(--gold-m)":"var(--surface)",border:`.5px solid ${sel?"var(--gold-b)":"var(--border)"}`}}>
+                <div style={{width:14,height:14,borderRadius:3,flexShrink:0,background:sel?"var(--gold)":already?"var(--emerald)":"transparent",border:`.5px solid ${sel?"var(--gold)":already?"var(--emerald)":"var(--border-h)"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#0a0800"}}>
+                  {(sel||already)?"✓":""}
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <p style={{fontSize:12,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{lead.name}</p>
+                  <p style={{fontSize:10,color:"var(--txt2)"}}>{lead.email||lead.phone}</p>
+                </div>
+                {already&&<span style={{fontSize:9,color:"var(--emerald)"}}>ya asignado</span>}
+              </div>
+            );
+          })}
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:10,borderTop:".5px solid var(--border)"}}>
+          <p style={{fontSize:12,color:"var(--txt2)"}}><strong style={{color:"var(--gold)"}}>{selectedLeads.length}</strong> seleccionados</p>
+          <div style={{display:"flex",gap:8}}>
+            <button className="btn btn-ghost" onClick={()=>setShowLeadPick(false)}>Cancelar</button>
+            <button className="btn btn-primary" disabled={selectedLeads.length===0} onClick={addLeads}>Asignar</button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Mover lead a otra campaña */}
+      <Modal open={!!showMoveModal} onClose={()=>setShowMoveModal(null)} title="Mover lead a otra campaña" width={400}>
+        {showMoveModal&&(
+          <>
+            <p style={{fontSize:13,color:"var(--txt2)",marginBottom:14}}>
+              Moviendo <strong style={{color:"var(--txt)"}}>{showMoveModal.lead_name}</strong> — se marcará como completado en esta campaña.
+            </p>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {campaigns.filter(c=>c.id!==activeCamp?.id).map(c=>(
+                <button key={c.id} className="btn btn-ghost"
+                  style={{justifyContent:"flex-start",gap:8,fontSize:12,padding:"10px 14px"}}
+                  onClick={()=>moveLeadToCampaign(showMoveModal.id,c.id)}>
+                  <span>{chIcon(c.channel)}</span>
+                  <span>{c.name}</span>
+                  <span style={{marginLeft:"auto",fontSize:10,color:"var(--txt3)"}}>{(campLeads[c.id]||[]).length} leads</span>
+                </button>
+              ))}
+              {campaigns.filter(c=>c.id!==activeCamp?.id).length===0&&(
+                <p style={{fontSize:12,color:"var(--txt3)",textAlign:"center",padding:"16px 0"}}>No hay otras campañas disponibles.</p>
+              )}
+            </div>
+          </>
+        )}
+      </Modal>
+
+      {/* Config remitente */}
+      <Modal open={showConfig} onClose={()=>setShowConfig(false)} title="Configuración de remitente" width={440}>
+        <p style={{fontSize:12,color:"var(--txt2)",marginBottom:14}}>
+          Nombre y email que aparecen en los emails enviados. Las credenciales van en API Keys.
+        </p>
+        <Field label="Nombre del remitente">
+          <input className="inp" value={fromName} onChange={e=>setFromName(e.target.value)} placeholder="Justin Jimenez"/>
+        </Field>
+        <Field label="Email del remitente">
+          <input className="inp" type="email" value={fromEmail} onChange={e=>setFromEmail(e.target.value)} placeholder="justin@comuniofficial.com"/>
+        </Field>
+        <div style={{marginTop:14,padding:12,background:"var(--surface)",borderRadius:"var(--radius-sm)",border:".5px solid var(--border)"}}>
+          <p style={{fontSize:11,color:"var(--txt2)",marginBottom:8,fontWeight:500}}>Proveedores de email conectados:</p>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:10,width:60,color:"var(--txt3)"}}>Resend</span>
+              <span style={{fontSize:11,color:resendKey?"var(--emerald)":"var(--red)"}}>{resendKey?"✓ Conectado — envío via API":"✗ Sin key"}</span>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:10,width:60,color:"var(--txt3)"}}>Gmail</span>
+              <span style={{fontSize:11,color:getKey(workspaceId,"gmail_user")?"var(--emerald)":"var(--red)"}}>
+                {getKey(workspaceId,"gmail_user")?"✓ Conectado — via Supabase Edge Fn":"✗ Sin key (configurá gmail_user + gmail_pass)"}
+              </span>
+            </div>
+          </div>
+          <p style={{fontSize:10,color:"var(--txt3)",marginTop:10}}>
+            Para Gmail: agregá <code style={{color:"var(--gold)"}}>gmail_user</code> y <code style={{color:"var(--gold)"}}>gmail_pass</code> en Configuración → API Keys. El envío corre en Supabase Edge Functions (las credenciales NUNCA llegan al browser).
+          </p>
+        </div>
+        <div style={{display:"flex",justifyContent:"flex-end",marginTop:14}}>
+          <button className="btn btn-primary" onClick={()=>{setShowConfig(false);toast("Remitente guardado","ok");}}>Guardar</button>
+        </div>
+      </Modal>
+
     </div>
   );
 }
@@ -906,12 +1866,14 @@ function TeamManagement({workspace,members,onInvite}:{workspace:Workspace;member
   );
 }
 
-// ── API KEYS SETTINGS (solo admin) ───────────────────────────────────────────
+
+// ── COMPONENTE API SETTINGS COMPLETO ─────────────────────────────────────────
 function ApiSettings({workspaceId}:{workspaceId:string}) {
-  const [keys,setKeys] = useState<Record<string,string>>({});
-  const [visible,setVisible] = useState<Record<string,boolean>>({});
-  const [saving,setSaving] = useState<string|null>(null);
-  const [activeCat,setActiveCat] = useState<string>("ia");
+  const [keys,      setKeys]      = useState<Record<string,string>>({});
+  const [visible,   setVisible]   = useState<Record<string,boolean>>({});
+  const [saving,    setSaving]    = useState<string|null>(null);
+  const [activeCat, setActiveCat] = useState("email");
+  const [expanded,  setExpanded]  = useState<string|null>(null);
   const toast = useToast();
 
   useEffect(()=>{
@@ -919,109 +1881,242 @@ function ApiSettings({workspaceId}:{workspaceId:string}) {
     if (saved) setKeys(JSON.parse(saved));
   },[workspaceId]);
 
-  async function saveKey(service:string) {
+  function saveKey(service:string) {
     setSaving(service);
-    await new Promise(r=>setTimeout(r,400));
-    localStorage.setItem(`closer_apikeys_${workspaceId}`,JSON.stringify(keys));
-    setSaving(null);
-    toast(`API Key de ${service} guardada`,"ok");
+    setTimeout(()=>{
+      localStorage.setItem(`closer_apikeys_${workspaceId}`,JSON.stringify(keys));
+      setSaving(null);
+      toast(`${service} guardado ✓`,"ok");
+    },300);
   }
 
+  function deleteKey(service:string) {
+    const updated = {...keys};
+    delete updated[service];
+    setKeys(updated);
+    localStorage.setItem(`closer_apikeys_${workspaceId}`,JSON.stringify(updated));
+    toast(`${service} eliminado`,"ok");
+  }
+
+  const services   = API_SERVICES.filter(s=>s.category===activeCat);
   const configured = API_SERVICES.filter(s=>keys[s.key]).length;
-  const services = API_SERVICES.filter(s=>(s as any).category===activeCat);
+
+  // Status global por canal de outreach
+  const channelStatus = {
+    email:    !!(keys["resend"] || (keys["gmail_user"] && keys["gmail_pass"])),
+    whatsapp: !!(keys["whatsapp_token"] && keys["whatsapp_phone_id"]),
+    sms:      !!(keys["twilio_sid"] && keys["twilio_token"] && keys["twilio_from"]),
+    linkedin: !!(keys["phantombuster"]),
+    ia:       !!(keys["anthropic"] || keys["openai"] || keys["groq"]),
+  };
 
   return (
     <div className="fade-up" style={{padding:"32px 36px",height:"100%",overflowY:"auto"}}>
+
+      {/* Header */}
       <div style={{marginBottom:24,display:"flex",justifyContent:"space-between",alignItems:"flex-end",flexWrap:"wrap",gap:12}}>
         <div>
           <h1 className="display" style={{fontSize:36,fontWeight:300,letterSpacing:"-0.01em"}}>API Keys</h1>
-          <p style={{fontSize:13,color:"var(--txt2)",marginTop:4}}>Solo visible para administradores del workspace</p>
+          <p style={{fontSize:13,color:"var(--txt2)",marginTop:4}}>Solo visible para administradores · Guardadas localmente en tu navegador</p>
         </div>
-        <span className="pill pill-gold" style={{fontSize:12}}>{configured} configuradas de {API_SERVICES.length}</span>
+        <span className="pill pill-gold" style={{fontSize:12}}>{configured} / {API_SERVICES.length} configuradas</span>
       </div>
 
-      {/* Category tabs */}
-      <div style={{display:"flex",gap:6,marginBottom:24,flexWrap:"wrap"}}>
+      {/* Status de canales de outreach */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:28}} className="daily-stats">
+        {[
+          {ch:"Email",    ok:channelStatus.email,    cat:"email",    icon:"✉",  detail:keys["resend"]?"Resend":keys["gmail_user"]?"Gmail":"—"},
+          {ch:"WhatsApp", ok:channelStatus.whatsapp, cat:"whatsapp", icon:"💬", detail:channelStatus.whatsapp?"Cloud API":"sin key"},
+          {ch:"SMS",      ok:channelStatus.sms,      cat:"sms",      icon:"📱", detail:channelStatus.sms?"Twilio":"sin key"},
+          {ch:"LinkedIn", ok:channelStatus.linkedin, cat:"linkedin", icon:"🔵", detail:channelStatus.linkedin?"Phantombuster":"manual"},
+          {ch:"IA",       ok:channelStatus.ia,       cat:"ia",       icon:"✦",  detail:keys["anthropic"]?"Claude":keys["openai"]?"GPT":keys["groq"]?"Groq":"sin key"},
+        ].map(item=>(
+          <div key={item.ch}
+            onClick={()=>setActiveCat(item.cat)}
+            className="glass"
+            style={{
+              padding:"12px 14px",cursor:"pointer",
+              borderColor:item.ok?"rgba(16,185,129,.3)":activeCat===item.cat?"var(--gold-b)":"var(--border)",
+              background:activeCat===item.cat?"var(--gold-m)":"var(--surface)",
+            }}>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
+              <span style={{fontSize:16}}>{item.icon}</span>
+              <span style={{
+                fontSize:9,padding:"1px 6px",borderRadius:99,
+                background:item.ok?"var(--em-m)":"var(--surface)",
+                color:item.ok?"var(--emerald)":"var(--txt3)",
+                border:`.5px solid ${item.ok?"rgba(16,185,129,.3)":"var(--border)"}`,
+              }}>{item.ok?"✓ listo":"pendiente"}</span>
+            </div>
+            <p style={{fontSize:12,fontWeight:500,color:activeCat===item.cat?"var(--gold)":"var(--txt)"}}>{item.ch}</p>
+            <p style={{fontSize:10,color:"var(--txt3)",marginTop:2}}>{item.detail}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Tabs de categorías */}
+      <div style={{display:"flex",gap:6,marginBottom:20,flexWrap:"wrap"}}>
         {API_CATEGORIES.map(c=>{
-          const count = API_SERVICES.filter(s=>(s as any).category===c.id).length;
-          const done = API_SERVICES.filter(s=>(s as any).category===c.id&&keys[s.key]).length;
+          const total = API_SERVICES.filter(s=>s.category===c.id).length;
+          const done  = API_SERVICES.filter(s=>s.category===c.id&&keys[s.key]).length;
+          const active = activeCat===c.id;
           return (
-            <button key={c.id} onClick={()=>setActiveCat(c.id)}
-              style={{
-                padding:"8px 16px",borderRadius:8,
-                border:`.5px solid ${activeCat===c.id?"var(--gold-b)":"var(--border)"}`,
-                background:activeCat===c.id?"var(--gold-m)":"transparent",
-                color:activeCat===c.id?"var(--gold)":"var(--txt2)",
-                fontSize:12,fontWeight:500,cursor:"pointer",
-                fontFamily:"'DM Sans',sans-serif",
-                display:"flex",alignItems:"center",gap:8
-              }}>
+            <button key={c.id} onClick={()=>setActiveCat(c.id)} style={{
+              padding:"7px 14px",borderRadius:8,cursor:"pointer",
+              border:`.5px solid ${active?"var(--gold-b)":"var(--border)"}`,
+              background:active?"var(--gold-m)":"transparent",
+              color:active?"var(--gold)":"var(--txt2)",
+              fontSize:12,fontWeight:active?500:400,
+              fontFamily:"'DM Sans',sans-serif",
+              display:"flex",alignItems:"center",gap:6,
+            }}>
               <span>{c.icon}</span>
               <span>{c.label}</span>
-              <span style={{fontSize:10,opacity:.7}}>{done}/{count}</span>
+              <span style={{
+                fontSize:9,padding:"1px 5px",borderRadius:99,
+                background:done===total&&total>0?"var(--em-m)":"var(--surface)",
+                color:done===total&&total>0?"var(--emerald)":"var(--txt3)",
+              }}>{done}/{total}</span>
             </button>
           );
         })}
       </div>
 
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(380px,1fr))",gap:16,maxWidth:1100}} className="csv-fields">
-        {services.map(svc=>(
-          <div key={svc.key} className={`glass ${keys[svc.key]?"glass-green":""}`} style={{padding:"18px 20px"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
-              <div style={{flex:1}}>
-                <p style={{fontWeight:500,fontSize:14}}>{svc.label}</p>
-                <p style={{fontSize:11,color:"var(--txt2)",marginTop:2,lineHeight:1.5}}>{svc.desc}</p>
-              </div>
-              {keys[svc.key]&&<span className="pill pill-green" style={{fontSize:10,flexShrink:0,marginLeft:8}}>✓ Activa</span>}
-            </div>
-            <div style={{display:"flex",gap:8}}>
-              <div style={{flex:1,position:"relative"}}>
-                <input
-                  className="inp"
-                  type={visible[svc.key]?"text":"password"}
-                  value={keys[svc.key]||""}
-                  onChange={e=>setKeys(p=>({...p,[svc.key]:e.target.value}))}
-                  placeholder={svc.placeholder}
-                  style={{paddingRight:38,fontSize:12}}
-                />
-                <button
-                  onClick={()=>setVisible(p=>({...p,[svc.key]:!p[svc.key]}))}
-                  style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:"var(--txt3)",cursor:"pointer",fontSize:14}}
-                >
-                  {visible[svc.key]?"●":"○"}
-                </button>
-              </div>
-              <button
-                className="btn btn-primary"
-                style={{flexShrink:0,padding:"0 14px",fontSize:12}}
-                onClick={()=>saveKey(svc.key)}
-                disabled={!keys[svc.key]||saving===svc.key}
-              >
-                {saving===svc.key?<Spinner/>:"Guardar"}
-              </button>
+      {/* Descripción de la categoría activa */}
+      {(() => {
+        const cat = API_CATEGORIES.find(c=>c.id===activeCat);
+        return cat ? (
+          <div style={{marginBottom:16,padding:"10px 14px",background:"var(--surface)",borderRadius:"var(--radius-sm)",border:".5px solid var(--border)",display:"flex",alignItems:"center",gap:10}}>
+            <span style={{fontSize:18}}>{cat.icon}</span>
+            <div>
+              <p style={{fontSize:12,fontWeight:500,color:"var(--txt)"}}>{cat.label}</p>
+              <p style={{fontSize:11,color:"var(--txt2)"}}>{cat.desc}</p>
             </div>
           </div>
-        ))}
+        ) : null;
+      })()}
+
+      {/* Cards de servicios */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(360px,1fr))",gap:14,maxWidth:1100}} className="csv-fields">
+        {services.map(svc=>{
+          const hasKey  = !!keys[svc.key];
+          const isExp   = expanded===svc.key;
+          const howLines = svc.how.split("\n");
+          const usedForList = svc.usedFor || [];
+          return (
+            <div key={svc.key}
+              className={`glass ${hasKey?"glass-green":""}`}
+              style={{padding:"16px 18px",transition:"all .2s"}}>
+
+              {/* Header */}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3,flexWrap:"wrap"}}>
+                    <p style={{fontWeight:500,fontSize:13}}>{svc.label}</p>
+                    {hasKey && <span className="pill pill-green" style={{fontSize:9}}>✓ Activa</span>}
+                    {(svc as any).badge && (
+                      <span className="pill" style={{fontSize:9,
+                        background:(svc as any).badge.includes("⚠")?"var(--red-m)":"var(--gold-m)",
+                        color:(svc as any).badge.includes("⚠")?"var(--red)":"var(--gold)",
+                        border:`.5px solid ${(svc as any).badge.includes("⚠")?"rgba(248,113,113,.2)":"var(--gold-b)"}`
+                      }}>{(svc as any).badge}</span>
+                    )}
+                  </div>
+                  <p style={{fontSize:11,color:"var(--txt2)",lineHeight:1.5}}>{svc.desc}</p>
+                </div>
+              </div>
+
+              {/* Para qué sirve */}
+              <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:12}}>
+                {usedForList.map((u:string,i:number)=>(
+                  <span key={i} style={{fontSize:9,padding:"2px 7px",borderRadius:99,background:"var(--surface)",color:"var(--txt2)",border:".5px solid var(--border)"}}>
+                    {u}
+                  </span>
+                ))}
+              </div>
+
+              {/* Input */}
+              <div style={{display:"flex",gap:6,marginBottom:8}}>
+                <div style={{flex:1,position:"relative"}}>
+                  <input
+                    className="inp"
+                    type={visible[svc.key]?"text":"password"}
+                    value={keys[svc.key]||""}
+                    onChange={e=>setKeys(p=>({...p,[svc.key]:e.target.value}))}
+                    placeholder={svc.placeholder}
+                    style={{paddingRight:36,fontSize:12}}
+                  />
+                  <button
+                    onClick={()=>setVisible(p=>({...p,[svc.key]:!p[svc.key]}))}
+                    style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"var(--txt3)",fontSize:12,padding:"2px 4px"}}>
+                    {visible[svc.key]?"●":"○"}
+                  </button>
+                </div>
+                <button
+                  className="btn btn-primary"
+                  style={{fontSize:11,padding:"0 14px",flexShrink:0,opacity:saving===svc.key?0.6:1}}
+                  disabled={saving===svc.key||!keys[svc.key]}
+                  onClick={()=>saveKey(svc.key)}>
+                  {saving===svc.key?"...":"Guardar"}
+                </button>
+                {hasKey && (
+                  <button className="btn btn-danger" style={{fontSize:11,padding:"0 10px",flexShrink:0}}
+                    onClick={()=>deleteKey(svc.key)}>✕</button>
+                )}
+              </div>
+
+              {/* Cómo obtenerla — expandible */}
+              <div>
+                <button
+                  onClick={()=>setExpanded(isExp?null:svc.key)}
+                  style={{background:"none",border:"none",cursor:"pointer",color:"var(--gold)",fontSize:11,padding:"0",display:"flex",alignItems:"center",gap:4,fontFamily:"'DM Sans',sans-serif"}}>
+                  <span style={{fontSize:10,transition:"transform .2s",display:"inline-block",transform:isExp?"rotate(90deg)":"rotate(0)"}}>{isExp?"▼":"▶"}</span>
+                  ¿Cómo obtenerla?
+                  {(svc as any).docsUrl && <span style={{color:"var(--txt3)",fontSize:10}}>· docs</span>}
+                </button>
+
+                {isExp && (
+                  <div style={{marginTop:10,padding:"10px 12px",background:"var(--bg2)",borderRadius:"var(--radius-sm)",border:".5px solid var(--border)"}}>
+                    {howLines.map((line:string,i:number)=>(
+                      <p key={i} style={{fontSize:11,color: line.startsWith("NOTA") || line.startsWith("NOTE") || line.startsWith("REQU") || line.startsWith("USO") || line.startsWith("ADVE") ? "var(--gold)" : line.match(/^\d\./) ? "var(--txt)" : "var(--txt2)",lineHeight:1.7,marginBottom:i<howLines.length-1?2:0}}>
+                        {line}
+                      </p>
+                    ))}
+                    {(svc as any).docsUrl && (
+                      <a href={(svc as any).docsUrl} target="_blank" rel="noreferrer"
+                        style={{display:"inline-flex",alignItems:"center",gap:4,marginTop:8,fontSize:11,color:"var(--blue)",textDecoration:"none"}}>
+                        Ir a la documentación oficial ↗
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
+
+            </div>
+          );
+        })}
       </div>
 
-      {activeCat==="auto"&&(
-        <div className="glass glass-gold" style={{maxWidth:1100,padding:"18px 20px",marginTop:20}}>
-          <p style={{fontSize:11,letterSpacing:".08em",textTransform:"uppercase",color:"var(--gold)",fontWeight:500,marginBottom:10}}>Flujos n8n disponibles</p>
-          <p style={{fontSize:12,color:"var(--txt2)",marginBottom:10,lineHeight:1.7}}>
-            Descargá el archivo JSON e importalo en tu instancia de n8n para activar la captura automática de leads inbound desde anuncios Meta, Google y landing pages.
-          </p>
-          <ul style={{fontSize:12,color:"var(--txt2)",lineHeight:2,paddingLeft:18}}>
-            <li><strong>Inbound Lead Capture</strong>: recibe leads de Meta Ads, Google Ads, landings → guarda en Supabase → te alerta por Telegram → manda email de bienvenida con Resend</li>
-            <li>Variables necesarias: <code style={{color:"var(--gold)"}}>SUPABASE_URL</code>, <code style={{color:"var(--gold)"}}>CLOSERAI_WORKSPACE_ID</code>, <code style={{color:"var(--gold)"}}>TELEGRAM_BOT_TOKEN</code>, <code style={{color:"var(--gold)"}}>TELEGRAM_CHAT_ID</code>, <code style={{color:"var(--gold)"}}>RESEND_API_KEY</code></li>
-          </ul>
+      {/* Info de seguridad */}
+      <div className="glass" style={{padding:"16px 20px",marginTop:24,maxWidth:760,border:".5px solid var(--gold-b)"}}>
+        <p style={{fontSize:12,fontWeight:500,marginBottom:10}}>Seguridad de las API Keys</p>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+          {[
+            {icon:"✓",text:"Guardadas en localStorage de tu navegador — nunca en servidores de CloserAI",c:"var(--emerald)"},
+            {icon:"✓",text:"Nunca se suben a GitHub ni aparecen en el código fuente",c:"var(--emerald)"},
+            {icon:"✓",text:"Solo los admins del workspace pueden verlas y editarlas",c:"var(--emerald)"},
+            {icon:"✓",text:"Gmail y credenciales SMTP corren en Supabase Edge Functions (backend aislado)",c:"var(--emerald)"},
+            {icon:"⚠",text:"Si borrás los datos del navegador, las keys se pierden — guardalas en un lugar seguro",c:"var(--gold)"},
+            {icon:"⚠",text:"No compartas el acceso admin con personas de confianza limitada",c:"var(--gold)"},
+          ].map((item,i)=>(
+            <p key={i} style={{fontSize:11,color:"var(--txt2)",display:"flex",gap:6,lineHeight:1.5}}>
+              <span style={{color:item.c,flexShrink:0}}>{item.icon}</span>
+              {item.text}
+            </p>
+          ))}
         </div>
-      )}
-
-      <div className="glass" style={{maxWidth:1100,padding:"14px 18px",marginTop:20,border:".5px solid rgba(96,165,250,.2)"}}>
-        <p style={{fontSize:12,color:"var(--blue)",lineHeight:1.7}}>
-          🔐 Las API Keys se guardan localmente y nunca son visibles para los miembros del equipo. En producción se encriptan con pgcrypto antes de almacenarse en Supabase.
-        </p>
       </div>
+
     </div>
   );
 }
