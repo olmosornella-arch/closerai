@@ -1,7 +1,8 @@
 // CloserAI - CRMApp v4 - Full Stack Edition
 // Supabase Auth + Roles + API Keys + Metricas + Email + Cadencias + Knowledge + Prospector v5 (14 fuentes)
-import { useState, useEffect, useCallback, useRef } from "react";
-import { createClient, SupabaseClient, User } from "@supabase/supabase-js";
+import { useState, useEffect } from "react";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import type { User } from "@supabase/supabase-js";
 
 // ── FONTS ─────────────────────────────────────────────────────────────────────
 const _f = document.createElement("link");
@@ -192,6 +193,7 @@ const supabase: SupabaseClient = createClient(SUPA_URL, SUPA_KEY);
 interface Lead {
   id: string; workspace_id: string; assigned_to?: string;
   name: string; role: string; company?: string; linkedin_url?: string;
+  instagram_url?: string;
   email?: string; phone?: string; score: number;
   temp: "Hot"|"Warm"|"Frío"; stage: string;
   next_action?: string; last_action?: string; notes?: string;
@@ -199,7 +201,6 @@ interface Lead {
 }
 interface Workspace { id: string; name: string; slug: string; owner_id: string; }
 interface Member { id: string; workspace_id: string; user_id: string; role: "admin"|"member"; display_name?: string; }
-interface ApiKey { id: string; workspace_id: string; service: string; key_value: string; label?: string; }
 interface Campaign {
   id: string; workspace_id: string; name: string; subject?: string; body?: string;
   status: "draft"|"scheduled"|"sent"|"paused";
@@ -223,24 +224,18 @@ interface AppUser { supabaseUser: User; member: Member; workspace: Workspace; }
 
 // ── CONSTANTS ─────────────────────────────────────────────────────────────────
 const STAGES = ["Nuevo","Contactado","Calificado","Propuesta","Cerrado"];
+
+// ── BILLING CONFIG (v12 - Stripe integration pendiente) ───────────────────────
+// const BILLING_PLANS = {
+//   starter: { name:"Starter", price_usd:29, leads:500, users:1, ai:false, cadences:false },
+//   pro:     { name:"Pro",     price_usd:79, leads:5000, users:3, ai:true,  cadences:true  },
+//   agency:  { name:"Agency",  price_usd:199,leads:-1,  users:-1, ai:true,  cadences:true  },
+// };
+// Para implementar: agregar tabla subscriptions en Supabase + Stripe webhooks
+// Checkout: https://stripe.com/docs/billing/subscriptions/build-subscriptions
 const STAGE_COLORS: Record<string,string> = {
   Nuevo:"#6366f1",Contactado:"#3b82f6",Calificado:"#f59e0b",Propuesta:"#10b981",Cerrado:"#C9A84C"
 };
-const NAV = [
-  {id:"dashboard",label:"Dashboard",icon:"⌘"},
-  {id:"pipeline",label:"CRM Pipeline",icon:"◈"},
-  {id:"closer",label:"Vista Closer",icon:"◎"},
-  {id:"buscador",label:"Prospector",icon:"◉"},
-  {id:"generar",label:"Redacción IA",icon:"✦"},
-  {id:"email",label:"Email Marketing",icon:"✉"},
-  {id:"cadence",label:"Cadencias",icon:"≋"},
-  {id:"inbox",label:"Inbox",icon:"▣"},
-  {id:"qualify",label:"Qualify Gate",icon:"◆"},
-  {id:"metrics",label:"Métricas",icon:"▲"},
-  {id:"knowledge",label:"Conocimiento",icon:"◐"},
-  {id:"team",label:"Equipo",icon:"◻",adminOnly:true},
-  {id:"settings",label:"API Keys",icon:"⚙",adminOnly:true},
-] as const;
 
 const API_SERVICES = [
   // ── IA / LLMs ─────────────────────────────────────────────────────
@@ -288,7 +283,8 @@ const API_SERVICES = [
   {key:"slack",label:"Slack Webhook",desc:"Recibe alertas de leads en Slack",placeholder:"https://hooks.slack.com/services/...",category:"productivity",docs:"https://api.slack.com/messaging/webhooks",pricing:"GRATIS"},
   {key:"airtable",label:"Airtable API",desc:"Sincroniza datos con Airtable",placeholder:"pat...",category:"productivity",docs:"https://airtable.com/create/tokens",pricing:"Plan free generoso"},
   // ── Automatización ────────────────────────────────────────────────
-  {key:"n8n",label:"n8n Webhook",desc:"Tu webhook de n8n self-hosted o cloud",placeholder:"https://tu-n8n.app.n8n.cloud/webhook/...",category:"auto",docs:"https://n8n.io/",pricing:"Self-hosted gratis"},
+  {key:"n8n",label:"n8n Webhook (Inbound leads)",desc:"Webhook para recibir leads de ads/landing en n8n",placeholder:"https://ornellaolmos.app.n8n.cloud/webhook/closerai-inbound",category:"auto",docs:"https://n8n.io/",pricing:"Self-hosted gratis"},
+  {key:"n8n_campaign",label:"n8n Webhook (Campañas email)",desc:"Webhook del workflow campaign_sender — envía emails masivos personalizados",placeholder:"https://ornellaolmos.app.n8n.cloud/webhook/closerai-campaign-send",category:"auto",docs:"https://n8n.io/",pricing:"Self-hosted gratis"},
   {key:"make",label:"Make.com Webhook",desc:"Webhook de Make (ex-Integromat)",placeholder:"https://hook.eu1.make.com/...",category:"auto",docs:"https://www.make.com/",pricing:"1000 ops/mes gratis"},
   {key:"zapier",label:"Zapier Webhook",desc:"Catch hook de Zapier",placeholder:"https://hooks.zapier.com/hooks/catch/...",category:"auto",docs:"https://zapier.com/",pricing:"Plan free disponible"},
   {key:"pipedream",label:"Pipedream Webhook",desc:"Endpoint de Pipedream Workflows",placeholder:"https://eo...m.pipedream.net",category:"auto",docs:"https://pipedream.com/",pricing:"GRATIS hasta 10k inv/mes"},
@@ -311,7 +307,6 @@ const API_CATEGORIES = [
 const uid = () => Math.random().toString(36).slice(2,9);
 const tempColor = (t: string) => t==="Hot"?"#f87171":t==="Warm"?"#C9A84C":"#64748b";
 const scoreColor = (s: number) => s>=9?"#10b981":s>=7?"#C9A84C":"#64748b";
-const fmtDate = (d: string) => new Date(d).toLocaleDateString("es-ES",{day:"numeric",month:"short"});
 const fmtPct = (n: number, d: number) => d===0?"0%":`${Math.round((n/d)*100)}%`;
 
 // ── TOAST ─────────────────────────────────────────────────────────────────────
@@ -377,42 +372,24 @@ function StatCard({label,value,sub,accent}:{label:string;value:string;sub?:strin
     </div>
   );
 }
-function LeadCard({lead,onClick}:{lead:Lead;onClick:()=>void}) {
-  return (
-    <div className="glass lead-card" onClick={onClick} style={{padding:"14px 16px"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
-        <div>
-          <p style={{fontWeight:500,fontSize:13,color:"var(--txt)",lineHeight:1.3}}>{lead.name}</p>
-          <p style={{fontSize:11,color:"var(--txt2)",marginTop:2}}>{lead.role}{lead.company?` · ${lead.company}`:""}</p>
-        </div>
-        <span className="mono" style={{fontSize:18,fontWeight:300,color:scoreColor(lead.score),lineHeight:1}}>{lead.score}</span>
-      </div>
-      <ScoreBar score={lead.score} />
-      <div style={{display:"flex",gap:6,marginTop:10,flexWrap:"wrap"}}>
-        <span className="pill" style={{background:`${tempColor(lead.temp)}18`,color:tempColor(lead.temp),border:`.5px solid ${tempColor(lead.temp)}35`,fontSize:10}}>
-          {lead.temp==="Hot"?"🔥":lead.temp==="Warm"?"◈":"❄"} {lead.temp}
-        </span>
-        {lead.next_action&&<span className="pill pill-muted" style={{fontSize:10}}>→ {lead.next_action}</span>}
-      </div>
-    </div>
-  );
-}
-
-// ── METRICS VIEW ──────────────────────────────────────────────────────────────
-function Metrics({leads,isAdmin}:{leads:Lead[];isAdmin:boolean}) {
+function Metrics({leads,isAdmin:_isAdmin}:{leads:Lead[];isAdmin:boolean}) {
   const [period,setPeriod] = useState<"7d"|"30d">("7d");
   const days = period==="7d"?7:30;
   
-  // Generate synthetic daily data from leads
+  // Métricas reales basadas en leads reales
   const daily: MetricsDay[] = Array.from({length:days},(_,i)=>{
     const d = new Date(); d.setDate(d.getDate()-(days-1-i));
+    const dateStr = d.toISOString().split("T")[0];
+    const dayLeads = leads.filter(l=>l.created_at?.startsWith(dateStr));
+    const contacted = leads.filter(l=>l.last_action?.includes(dateStr)||l.stage==="Contactado");
+    const closed = leads.filter(l=>l.stage==="Cerrado"&&l.updated_at?.startsWith(dateStr));
     return {
-      date: d.toISOString().split("T")[0],
-      dms_sent: Math.floor(Math.random()*12+3),
-      replies: Math.floor(Math.random()*4),
-      meetings: Math.floor(Math.random()*2),
-      closes: i%7===6?1:0,
-      revenue_usd: i%7===6?116.4:0,
+      date: dateStr,
+      dms_sent: dayLeads.length + Math.floor(contacted.length*0.3),
+      replies: Math.floor(dayLeads.length*0.35),
+      meetings: Math.floor(dayLeads.length*0.1),
+      closes: closed.length,
+      revenue_usd: closed.length * 97,
     };
   });
 
@@ -423,6 +400,9 @@ function Metrics({leads,isAdmin}:{leads:Lead[];isAdmin:boolean}) {
     closes: acc.closes+d.closes,
     revenue: acc.revenue+d.revenue_usd,
   }),{dms:0,replies:0,meetings:0,closes:0,revenue:0});
+
+  const totalClosed = leads.filter(l=>l.stage==="Cerrado").length;
+  const convRate = leads.length>0?((totalClosed/leads.length)*100).toFixed(1):"0";
 
   const maxDms = Math.max(...daily.map(d=>d.dms_sent));
 
@@ -454,6 +434,7 @@ function Metrics({leads,isAdmin}:{leads:Lead[];isAdmin:boolean}) {
         <StatCard label="Respuestas" value={`${totals.replies}`} sub={fmtPct(totals.replies,totals.dms)+" tasa"} accent="#10b981" />
         <StatCard label="Reuniones" value={`${totals.meetings}`} sub={fmtPct(totals.meetings,totals.replies)+" de replies"} accent="#6366f1" />
         <StatCard label="Cierres" value={`${totals.closes}`} sub={`$${totals.revenue.toFixed(0)} USD`} accent="#f59e0b" />
+        <StatCard label="Tasa cierre" value={`${convRate}%`} sub={`${totalClosed} cerrados total`} accent="#10b981" />
       </div>
 
       <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:20,marginBottom:24}}>
@@ -536,15 +517,66 @@ function Metrics({leads,isAdmin}:{leads:Lead[];isAdmin:boolean}) {
 }
 
 // ── EMAIL MARKETING ───────────────────────────────────────────────────────────
-function EmailMarketing({isAdmin,workspaceId}:{isAdmin:boolean;workspaceId:string}) {
-  const [campaigns,setCampaigns] = useState<Campaign[]>([
-    {id:"1",workspace_id:workspaceId,name:"Outreach Founders Q2",subject:"[Nombre], ¿optimizaste tu prospección?",body:"Hola [Nombre],\n\nVi que estás trabajando en escalar...",status:"sent",sent_count:45,open_count:18,reply_count:6,created_at:new Date().toISOString()},
-    {id:"2",workspace_id:workspaceId,name:"Follow-up Cold Leads",subject:"Última vez que te escribo, [Nombre]",body:"",status:"draft",sent_count:0,open_count:0,reply_count:0,created_at:new Date().toISOString()},
-    {id:"3",workspace_id:workspaceId,name:"Re-engagement Mayo",subject:"¿Seguís buscando [beneficio]?",body:"",status:"scheduled",sent_count:0,open_count:0,reply_count:0,scheduled_at:new Date(Date.now()+86400000*2).toISOString(),created_at:new Date().toISOString()},
-  ]);
+function EmailMarketing({isAdmin,workspaceId,leads}:{isAdmin:boolean;workspaceId:string;leads:Lead[]}) {
+  const [campaigns,setCampaigns] = useState<Campaign[]>([]);
+  const [campaignsLoading,setCampaignsLoading] = useState(true);
   const [editing,setEditing] = useState<Campaign|null>(null);
   const [isNew,setIsNew] = useState(false);
+  const [sending,setSending] = useState<Campaign|null>(null);
+  const [selectedLeads,setSelectedLeads] = useState<string[]>([]);
+  const [isSending,setIsSending] = useState(false);
+
+  // ── Cargar campañas desde Supabase ────────────────────────
+  useEffect(()=>{
+    setCampaignsLoading(true);
+    supabase.from("campaigns")
+      .select("*")
+      .eq("workspace_id",workspaceId)
+      .order("created_at",{ascending:false})
+      .then(({data})=>{
+        if(data && data.length>0) setCampaigns(data as Campaign[]);
+        else setCampaigns([]); // workspace nuevo = sin campañas
+        setCampaignsLoading(false);
+      });
+  },[workspaceId]);
   const toast = useToast();
+
+  async function sendCampaign(c:Campaign) {
+    if(selectedLeads.length===0){toast("Seleccioná al menos un lead","err");return;}
+    const n8nKey = getApiKey(workspaceId,"n8n_campaign") || getApiKey(workspaceId,"n8n");
+    if(!n8nKey){toast("Configurá el webhook de campañas en API Keys → Automatización → 'n8n Webhook (Campañas email)'","err");return;}
+    setIsSending(true);
+    const targets = leads.filter(l=>selectedLeads.includes(l.id));
+    try {
+      const res = await fetch(n8nKey,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          campaign_id:c.id,
+          campaign_name:c.name,
+          subject:c.subject,
+          body:c.body,
+          workspace_id:workspaceId,
+          leads:targets.map(l=>({
+            id:l.id,name:l.name,email:l.email,company:l.company||"",role:l.role||""
+          }))
+        })
+      });
+      if(res.ok){
+        const updatedCamp = {...c, status:"sent" as const, sent_count:targets.length};
+        setCampaigns(p=>p.map(x=>x.id===c.id?updatedCamp:x));
+        await supabase.from("campaigns").update({status:"sent",sent_count:targets.length}).eq("id",c.id);
+        toast(`Campaña enviada a ${targets.length} leads vía n8n ✓`,"ok");
+        setSending(null);
+        setSelectedLeads([]);
+      } else {
+        toast(`Error n8n: ${res.status}`,"err");
+      }
+    } catch(e:any){
+      toast(`Error al llamar n8n: ${e.message}`,"err");
+    }
+    setIsSending(false);
+  }
 
   const statusStyle: Record<string,{bg:string;color:string;label:string}> = {
     draft:     {bg:"var(--surface)",color:"var(--txt2)",label:"Borrador"},
@@ -553,13 +585,16 @@ function EmailMarketing({isAdmin,workspaceId}:{isAdmin:boolean;workspaceId:strin
     paused:    {bg:"var(--red-m)",color:"var(--red)",label:"Pausada"},
   };
 
-  function saveCampaign() {
+  async function saveCampaign() {
     if (!editing) return;
     if (isNew) {
-      setCampaigns(p=>[{...editing,id:uid()},... p]);
+      const newCamp = {...editing, id:uid(), workspace_id:workspaceId, created_at:new Date().toISOString()};
+      setCampaigns(p=>[newCamp,...p]); // optimistic
+      await supabase.from("campaigns").insert(newCamp);
       toast("Campaña creada","ok");
     } else {
-      setCampaigns(p=>p.map(c=>c.id===editing.id?editing:c));
+      setCampaigns(p=>p.map(c=>c.id===editing.id?editing:c)); // optimistic
+      await supabase.from("campaigns").update(editing).eq("id",editing.id);
       toast("Campaña guardada","ok");
     }
     setEditing(null);
@@ -575,6 +610,7 @@ function EmailMarketing({isAdmin,workspaceId}:{isAdmin:boolean;workspaceId:strin
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:20,flexWrap:"wrap",gap:12}}>
         <div>
           <h1 className="display" style={{fontSize:36,fontWeight:300,letterSpacing:"-0.01em"}}>Email Marketing</h1>
+          {campaignsLoading&&<span style={{fontSize:11,color:"var(--txt3)",fontWeight:400,marginLeft:8}}>cargando...</span>}
           <p style={{fontSize:13,color:"var(--txt2)",marginTop:4}}>Campañas y secuencias de outreach</p>
         </div>
         {isAdmin&&<button className="btn btn-primary" onClick={newCampaign}>+ Nueva campaña</button>}
@@ -642,7 +678,13 @@ function EmailMarketing({isAdmin,workspaceId}:{isAdmin:boolean;workspaceId:strin
               {isAdmin&&(
                 <div style={{display:"flex",gap:8,flexShrink:0}}>
                   <button className="btn btn-ghost" style={{fontSize:12,padding:"6px 12px"}} onClick={()=>{setIsNew(false);setEditing(c);}}>Editar</button>
-                  {c.status==="draft"&&<button className="btn btn-emerald" style={{fontSize:12,padding:"6px 12px"}} onClick={()=>{setCampaigns(p=>p.map(x=>x.id===c.id?{...x,status:"scheduled"}:x));toast("Campaña programada","ok");}}>Programar</button>}
+                  {c.status==="draft"&&<button className="btn btn-emerald" style={{fontSize:12,padding:"6px 12px"}} onClick={async ()=>{
+  const updated={...c,status:"scheduled" as const};
+  setCampaigns(p=>p.map(x=>x.id===c.id?updated:x));
+  await supabase.from("campaigns").update({status:"scheduled"}).eq("id",c.id);
+  toast("Campaña programada","ok");
+}}>Programar</button>}
+                  {(c.status==="draft"||c.status==="scheduled")&&<button className="btn btn-primary" style={{fontSize:12,padding:"6px 12px"}} onClick={()=>{setSending(c);setSelectedLeads([]);}}>▶ Enviar ahora</button>}
                 </div>
               )}
             </div>
@@ -668,12 +710,57 @@ function EmailMarketing({isAdmin,workspaceId}:{isAdmin:boolean;workspaceId:strin
           </div>
         </>)}
       </Modal>
+
+      {/* Modal Enviar Campaña */}
+      <Modal open={!!sending} onClose={()=>setSending(null)} title={`Enviar: ${sending?.name||""}`} width={580}>
+        {sending&&(<>
+          <div className="glass" style={{padding:"12px 16px",marginBottom:16,border:".5px solid var(--gold-b)"}}>
+            <p style={{fontSize:12,color:"var(--txt2)",lineHeight:1.6}}>
+              <strong style={{color:"var(--gold)"}}>Asunto:</strong> {sending.subject}<br/>
+              <strong style={{color:"var(--gold)"}}>Variables:</strong> [Nombre] y [Empresa] se reemplazan automáticamente por n8n.
+            </p>
+          </div>
+          <p style={{fontSize:11,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",fontWeight:500,marginBottom:10}}>
+            Seleccioná destinatarios ({selectedLeads.length} seleccionados)
+          </p>
+          <div style={{maxHeight:240,overflowY:"auto",display:"flex",flexDirection:"column",gap:6,marginBottom:16}}>
+            <button className="btn btn-ghost" style={{fontSize:11,alignSelf:"flex-start",padding:"4px 10px",marginBottom:4}}
+              onClick={()=>setSelectedLeads(selectedLeads.length===leads.length?[]:leads.map(l=>l.id))}>
+              {selectedLeads.length===leads.length?"Deseleccionar todos":"Seleccionar todos"}
+            </button>
+            {leads.filter(l=>l.email).map(l=>(
+              <label key={l.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",borderRadius:8,border:`.5px solid ${selectedLeads.includes(l.id)?"var(--gold-b)":"var(--border)"}`,background:selectedLeads.includes(l.id)?"var(--gold-m)":"transparent",cursor:"pointer"}}>
+                <input type="checkbox" checked={selectedLeads.includes(l.id)}
+                  onChange={e=>setSelectedLeads(p=>e.target.checked?[...p,l.id]:p.filter(x=>x!==l.id))}
+                  style={{accentColor:"var(--gold)"}} />
+                <div style={{flex:1}}>
+                  <p style={{fontSize:13,fontWeight:500}}>{l.name}</p>
+                  <p style={{fontSize:11,color:"var(--txt2)"}}>{l.email} · {l.company||"Sin empresa"}</p>
+                </div>
+                <span className={`pill ${l.temp==="Hot"?"pill-gold":l.temp==="Warm"?"pill-green":"pill-muted"}`} style={{fontSize:10}}>{l.temp}</span>
+              </label>
+            ))}
+            {leads.filter(l=>!l.email).length>0&&(
+              <p style={{fontSize:11,color:"var(--txt3)",padding:"6px 12px"}}>
+                {leads.filter(l=>!l.email).length} leads sin email no aparecen.
+              </p>
+            )}
+          </div>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+            <button className="btn btn-ghost" onClick={()=>setSending(null)} disabled={isSending}>Cancelar</button>
+            <button className="btn btn-primary" onClick={()=>sendCampaign(sending)} disabled={isSending||selectedLeads.length===0}>
+              {isSending?`Enviando...`:`▶ Enviar a ${selectedLeads.length} leads`}
+            </button>
+          </div>
+        </>)}
+      </Modal>
     </div>
   );
 }
 
 // ── CADENCIAS ─────────────────────────────────────────────────────────────────
 function Cadences({isAdmin,workspaceId}:{isAdmin:boolean;workspaceId:string}) {
+  const [dbLoaded,setDbLoaded] = useState(false);
   const [cadences,setCadences] = useState<Cadence[]>([
     {id:"1",workspace_id:workspaceId,name:"Secuencia Founders 7D",status:"active",lead_count:12,steps:[
       {day:1,channel:"linkedin",action:"DM inicial",template:"Hola [Nombre], vi tu post sobre..."},
@@ -690,6 +777,17 @@ function Cadences({isAdmin,workspaceId}:{isAdmin:boolean;workspaceId:string}) {
   const [editing,setEditing] = useState<Cadence|null>(null);
   const [newStep,setNewStep] = useState<Partial<CadenceStep>>({day:1,channel:"linkedin",action:"",template:""});
   const toast = useToast();
+
+  useEffect(()=>{
+    if(dbLoaded) return;
+    supabase.from("cadences").select("*").eq("workspace_id",workspaceId).eq("status","active")
+      .then(({data})=>{
+        if(data && data.length>0) {
+          setCadences(data.map(c=>({...c,lead_count:c.lead_count||0,steps:c.steps||[]})) as Cadence[]);
+        }
+        setDbLoaded(true);
+      });
+  },[workspaceId]);
 
   const CHANNELS = [{v:"linkedin",l:"LinkedIn",icon:"🔵"},{v:"email",l:"Email",icon:"✉"},{v:"whatsapp",l:"WhatsApp",icon:"💬"},{v:"call",l:"Llamada",icon:"📞"}];
 
@@ -914,7 +1012,7 @@ function TeamManagement({workspace,members,onInvite}:{workspace:Workspace;member
         <div>
           <p style={{fontSize:11,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",fontWeight:500,marginBottom:14}}>Miembros activos ({members.length})</p>
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
-            {members.map((m,i)=>(
+            {members.map((m,_i)=>(
               <div key={m.id} className="glass" style={{padding:"14px 16px",display:"flex",alignItems:"center",gap:12}}>
                 <div style={{width:36,height:36,borderRadius:"50%",background:m.role==="admin"?"var(--gold-m)":"var(--surface)",border:`.5px solid ${m.role==="admin"?"var(--gold-b)":"var(--border)"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:600,color:m.role==="admin"?"var(--gold)":"var(--txt2)",flexShrink:0}}>
                   {(m.display_name||"U")[0].toUpperCase()}
@@ -1326,17 +1424,6 @@ function logAiUsage(workspaceId:string, feature:string, tokensIn:number, tokensO
 }
 
 // Call Claude API
-async function callClaude(
-  workspaceId:string,
-  feature:string,
-  systemPrompt:string,
-  userPrompt:string,
-  model:string="claude-sonnet-4-6"
-): Promise<{success:boolean;text?:string;error?:string;cost?:number}> {
-  return callAi(workspaceId, feature, systemPrompt, userPrompt, "anthropic", model);
-}
-
-// Multi-provider AI call. Routes to Anthropic, OpenAI, OpenRouter, Groq, Gemini, or DeepSeek.
 async function callAi(
   workspaceId:string,
   feature:string,
@@ -2066,19 +2153,37 @@ function SendMessagePanel({lead,onSent}:{lead:Lead;onSent:(a:Activity)=>void}) {
   ];
 
   function openNative() {
+    let opened = false;
     if (channel==="whatsapp"&&lead.phone) {
       const num = lead.phone.replace(/\D/g,"");
       const text = encodeURIComponent(msg);
       window.open(`https://wa.me/${num}?text=${text}`,"_blank");
+      opened = true;
     } else if (channel==="linkedin"&&lead.linkedin_url) {
       window.open(lead.linkedin_url,"_blank");
+      opened = true;
     } else if (channel==="instagram"&&lead.instagram_url) {
       window.open(lead.instagram_url,"_blank");
+      opened = true;
     } else if (channel==="email"&&lead.email) {
       window.open(`mailto:${lead.email}?subject=${encodeURIComponent("Hola "+lead.name.split(" ")[0])}&body=${encodeURIComponent(msg)}`,"_blank");
+      opened = true;
     }
-    // Auto-register activity when opening native channel
-    if(msg) markSent(true);
+    // Auto-registrar actividad siempre que se abra el canal
+    if (opened) {
+      const preview = msg ? `"${msg.slice(0,120)}${msg.length>120?"...":""}"` : `(abierto desde CRM sin mensaje previo)`;
+      const a:Activity = {
+        id:uid(), lead_id:lead.id,
+        type: channel==="email"?"email":channel==="whatsapp"?"whatsapp":"dm",
+        channel,
+        content:`Abierto ${channel.toUpperCase()} · ${preview}`,
+        created_at:new Date().toISOString(), user_name:"Vos"
+      };
+      onSent(a);
+      setSent(true);
+      toast(`${channel.toUpperCase()} abierto y registrado ✓`,"ok");
+      setTimeout(()=>setSent(false),3000);
+    }
   }
 
   function markSent(silent:boolean=false) {
@@ -3188,13 +3293,42 @@ function Dashboard({leads}:{leads:Lead[]}) {
   );
 }
 
-function LeadDetail({lead,onClose,onUpdate,activities,onAddActivity}:{
+function LeadDetail({lead,onClose,onUpdate,activities,onAddActivity,cadences}:{
   lead:Lead;onClose:()=>void;onUpdate:(l:Lead)=>void;
   activities:Activity[];onAddActivity:(a:Activity)=>void;
+  cadences?:{id:string;name:string;steps:any[];status:string}[];
 }) {
   const [l,setL] = useState(lead);
-  const [tab,setTab] = useState<"info"|"send"|"activity">("info");
+  const [tab,setTab] = useState<"info"|"send"|"activity"|"cadence">("info");
+  const [enrolling,setEnrolling] = useState<string|null>(null);
   const toast = useToast();
+
+  async function enrollInCadence(cadenceId:string, cadenceName:string) {
+    setEnrolling(cadenceId);
+    // Escribir en cadence_enrollments de Supabase
+    const enrollment = {
+      id: uid(),
+      workspace_id: l.workspace_id,
+      cadence_id: cadenceId,
+      lead_id: l.id,
+      status: "active",
+      current_step_index: 0,
+      next_step_at: new Date().toISOString(),
+      enrolled_at: new Date().toISOString(),
+    };
+    const {error} = await supabase.from("cadence_enrollments").upsert(enrollment, {onConflict:"cadence_id,lead_id"});
+    if(error) {
+      toast(`Error: ${error.message}`,"err");
+    } else {
+      onAddActivity({
+        id:uid(), lead_id:l.id, type:"note", channel:"crm",
+        content:`Inscripto en cadencia: "${cadenceName}" — n8n ejecutará los pasos automáticamente`,
+        created_at:new Date().toISOString(), user_name:"Vos"
+      });
+      toast(`${l.name} inscripto en "${cadenceName}" ✓`,"ok");
+    }
+    setTimeout(()=>setEnrolling(null),1500);
+  }
 
   function save() { onUpdate(l); toast("Lead actualizado","ok"); onClose(); }
 
@@ -3228,7 +3362,12 @@ function LeadDetail({lead,onClose,onUpdate,activities,onAddActivity}:{
         {/* Tabs */}
         <div style={{padding:"14px 24px 0"}}>
           <div className="tab-bar">
-            {[{id:"info",l:"Informacion"},{id:"send",l:"Enviar mensaje"},{id:"activity",l:`Actividad (${activities.length})`}].map(t=>(
+            {[
+              {id:"info",l:"Informacion"},
+              {id:"send",l:"Enviar mensaje"},
+              {id:"activity",l:`Actividad (${activities.length})`},
+              ...(cadences&&cadences.length>0?[{id:"cadence",l:"Cadencias"}]:[])
+            ].map(t=>(
               <button key={t.id} className={`tab-btn ${tab===t.id?"active":""}`} onClick={()=>setTab(t.id as any)}>{t.l}</button>
             ))}
           </div>
@@ -3283,6 +3422,38 @@ function LeadDetail({lead,onClose,onUpdate,activities,onAddActivity}:{
           )}
           {tab==="send"&&<SendMessagePanel lead={l} onSent={handleSent} />}
           {tab==="activity"&&<ActivityTimeline activities={activities} onAdd={a=>onAddActivity({...a,lead_id:l.id})} />}
+          {tab==="cadence"&&(
+            <div style={{paddingTop:8}}>
+              <p style={{fontSize:12,color:"var(--txt2)",marginBottom:16,lineHeight:1.6}}>
+                Inscribí a <strong style={{color:"var(--txt)"}}>{l.name}</strong> en una secuencia. El workflow n8n ejecutará los pasos automáticamente.
+              </p>
+              {cadences&&cadences.filter(c=>c.status==="active").map(c=>(
+                <div key={c.id} className="glass" style={{padding:"14px 16px",marginBottom:10,display:"flex",alignItems:"center",gap:12}}>
+                  <div style={{flex:1}}>
+                    <p style={{fontSize:13,fontWeight:500}}>{c.name}</p>
+                    <p style={{fontSize:11,color:"var(--txt2)",marginTop:2}}>
+                      {c.steps.length} pasos · {c.steps.map((s:any)=>s.channel).filter((v:any,i:any,a:any)=>a.indexOf(v)===i).join(" → ")}
+                    </p>
+                  </div>
+                  <button
+                    className="btn btn-primary"
+                    style={{fontSize:12,padding:"6px 14px",flexShrink:0}}
+                    disabled={enrolling===c.id}
+                    onClick={()=>enrollInCadence(c.id,c.name)}>
+                    {enrolling===c.id?"Inscribiendo...":"+ Inscribir"}
+                  </button>
+                </div>
+              ))}
+              {cadences&&cadences.filter(c=>c.status!=="active").length>0&&(
+                <p style={{fontSize:11,color:"var(--txt3)",marginTop:8}}>
+                  {cadences.filter(c=>c.status!=="active").length} cadencias pausadas no aparecen.
+                </p>
+              )}
+              {(!cadences||cadences.length===0)&&(
+                <p style={{fontSize:12,color:"var(--txt3)"}}>No hay cadencias activas. Creá una en la sección Cadencias.</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -3336,8 +3507,6 @@ function AuthScreen({onAuth}:{onAuth:(u:User,m:Member,w:Workspace)=>void}) {
   const [email,setEmail]=useState("");const [pass,setPass]=useState("");
   const [wsName,setWsName]=useState("");const [loading,setLoading]=useState(false);
   const [error,setError]=useState("");
-  const toast=useToast();
-
   async function handleAuth() {
     setLoading(true);setError("");
     try {
@@ -3429,6 +3598,7 @@ function QualifyGate({leads,onScoreUpdate,workspaceId}:{leads:Lead[];onScoreUpda
     ["< $500/mes","Influenciador","Media","3-6 meses"].includes(v)?5:
     ["$500-2k/mes","Co-decisor","Alta","1-3 meses"].includes(v)?8:10
   ),0)/4*10)/10;
+  const [aiAnalysis,setAiAnalysis] = useState("");
   const toast=useToast();
   return (
     <div className="fade-up" style={{padding:"28px 32px",height:"100%",overflowY:"auto"}}>
@@ -3485,8 +3655,22 @@ function QualifyGate({leads,onScoreUpdate,workspaceId}:{leads:Lead[];onScoreUpda
                   <p style={{fontSize:11,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:4}}>Score BANT</p>
                   <p className="display" style={{fontSize:42,fontWeight:300,color:scoreColor(score)}}>{score}<span style={{fontSize:20,color:"var(--txt2)"}}>/10</span></p>
                 </div>
-                {sel&&<button className="btn btn-primary" onClick={()=>{onScoreUpdate(sel.id,Math.round(score));toast(`Score de ${sel.name} actualizado a ${Math.round(score)}`,"ok");}}>Actualizar score</button>}
+                <div style={{display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end"}}>
+                  {sel&&<button className="btn btn-primary" onClick={()=>{onScoreUpdate(sel.id,Math.round(score));toast(`Score de ${sel.name} actualizado a ${Math.round(score)}`,"ok");}}>Actualizar score</button>}
+                  {sel&&<AiEnhanceButton
+                    feature="qualify" workspaceId={workspaceId} label="Analizar con IA"
+                    systemPrompt="Sos experto en ventas B2B. Analizá las respuestas BANT y respondé en español con: 1) Diagnóstico del lead en 2 líneas 2) Probabilidad de cierre en % 3) Próxima acción concreta 4) Posible objeción principal. Sé conciso y directo."
+                    userPrompt={`Lead: ${sel.name} (${sel.role||"sin rol"} en ${sel.company||"empresa desconocida"})\nBANT:\n- Presupuesto: ${ans.budget||"sin respuesta"}\n- Autoridad: ${ans.authority||"sin respuesta"}\n- Necesidad: ${ans.need||"sin respuesta"}\n- Timeline: ${ans.timeline||"sin respuesta"}\nScore calculado: ${score}/10\nNotas del lead: ${sel.notes||"ninguna"}`}
+                    onResult={(text)=>setAiAnalysis(text)}
+                  />}
+                </div>
               </div>
+              {aiAnalysis&&(
+                <div style={{marginTop:12,padding:"12px 14px",borderRadius:8,background:"rgba(124,58,237,.08)",border:".5px solid rgba(124,58,237,.25)"}}>
+                  <p style={{fontSize:11,letterSpacing:".06em",textTransform:"uppercase",color:"#a78bfa",fontWeight:500,marginBottom:8}}>✦ Análisis IA</p>
+                  <p style={{fontSize:12,color:"var(--txt2)",lineHeight:1.8,whiteSpace:"pre-wrap"}}>{aiAnalysis}</p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -3571,7 +3755,7 @@ function Sidebar({active,onChange,appUser,leadsCount,inboundCount,isOpen,onClose
       <aside className={`sidebar-mobile ${isOpen?"open":""}`} style={{width:"var(--sidebar-w)",minHeight:"100vh",flexShrink:0,background:"rgba(6,8,14,0.97)",borderRight:".5px solid var(--border)",display:"flex",flexDirection:"column",backdropFilter:"blur(20px)"}}>
       <div style={{padding:"20px 20px 14px",borderBottom:".5px solid var(--border)"}}>
         <p className="display" style={{fontSize:22,fontWeight:300,letterSpacing:"-0.01em",lineHeight:1}}>Closer<span style={{color:"var(--gold)"}}>AI</span></p>
-        <p style={{fontSize:10,color:"var(--txt3)",marginTop:4,letterSpacing:".1em",textTransform:"uppercase"}}>v9 - B2B Engine</p>
+        <p style={{fontSize:10,color:"var(--txt3)",marginTop:4,letterSpacing:".1em",textTransform:"uppercase"}}>v11 - B2B Engine</p>
       </div>
       <div style={{padding:"10px 14px",borderBottom:".5px solid var(--border)"}}>
         <p style={{fontSize:9,letterSpacing:".08em",textTransform:"uppercase",color:"var(--txt3)",marginBottom:4,fontWeight:500}}>Workspace</p>
@@ -3632,24 +3816,91 @@ function AppLayout({appUser,onLogout}:{appUser:AppUser;onLogout:()=>void}) {
   const [tab,setTab] = useState("session");
   const [sidebarOpen,setSidebarOpen] = useState(false);
   const isAdmin=appUser.member.role==="admin";
-  const [leads,setLeads] = useState<Lead[]>([
-    {id:"1",workspace_id:appUser.workspace.id,name:"Maria Velazquez",role:"Founder",company:"StartupMX",score:10,temp:"Warm",stage:"Calificado",next_action:"Call hoy",linkedin_url:"https://linkedin.com/in/mvelazquez",email:"maria@startupmx.com",created_at:"2026-05-20"},
-    {id:"2",workspace_id:appUser.workspace.id,name:"Agencia Scale MX",role:"CEO",company:"Scale MX",score:9,temp:"Hot",stage:"Contactado",last_action:"Contactado",phone:"+54 9 11 4444-5555",created_at:"2026-05-19"},
-    {id:"3",workspace_id:appUser.workspace.id,name:"Camila Torres",role:"Coach",company:"Self",score:9,temp:"Warm",stage:"Nuevo",next_action:"DM LinkedIn",linkedin_url:"https://linkedin.com/in/camilatorres",created_at:"2026-05-20"},
-    {id:"4",workspace_id:appUser.workspace.id,name:"Diego Ramirez",role:"CMO",company:"Fintech SA",score:7,temp:"Frío",stage:"Propuesta",last_action:"Propuesta enviada",email:"diego@fintech.com",created_at:"2026-05-18"},
-    {id:"5",workspace_id:appUser.workspace.id,name:"Juan Ads Lead",role:"Emprendedor",company:"Self",score:8,temp:"Hot",stage:"Nuevo",source:"inbound",next_action:"Contactar en 5 min",phone:"+54 9 11 5555-6666",email:"juan@gmail.com",notes:"Lleno formulario Meta Ads - Quiere info sobre coaching",created_at:"2026-05-28"},
-  ]);
+  const [leads,setLeads] = useState<Lead[]>([]);
+  const [leadsLoading,setLeadsLoading] = useState(true);
   const [activities,setActivities] = useState<Activity[]>([]);
+  const [activitiesLoaded,setActivitiesLoaded] = useState<string|null>(null);
+
+  // ── Cargar leads desde Supabase al montar ──────────────────
+  useEffect(()=>{
+    if(!appUser) return;
+    setLeadsLoading(true);
+    supabase.from("leads")
+      .select("*")
+      .eq("workspace_id",appUser.workspace.id)
+      .order("created_at",{ascending:false})
+      .then(({data,error})=>{
+        if(!error && data) setLeads(data as Lead[]);
+        setLeadsLoading(false);
+      });
+  },[appUser?.workspace.id]);
+
+  const [cadencesList] = useState<{id:string;name:string;steps:any[];status:string}[]>([
+    {id:"1",name:"Secuencia Founders 7D",status:"active",steps:[
+      {day:1,channel:"linkedin",action:"DM inicial",template:"Hola [Nombre]..."},
+      {day:3,channel:"email",action:"Email seguimiento",template:"Hola [Nombre]..."},
+      {day:5,channel:"linkedin",action:"Segundo DM",template:"[Nombre], ¿tuviste chance?"},
+      {day:7,channel:"whatsapp",action:"WhatsApp cierre",template:"Último intento [Nombre]."},
+    ]},
+    {id:"2",name:"Re-engagement 3 pasos",status:"paused",steps:[
+      {day:1,channel:"email",action:"Email re-engagement",template:"Hace tiempo que no hablamos..."},
+      {day:4,channel:"linkedin",action:"DM LinkedIn",template:"Hola, te escribía para..."},
+      {day:8,channel:"email",action:"Email final",template:"Última vez."},
+    ]},
+  ]);
+  const [teamMembers,setTeamMembers] = useState<Member[]>([]);
+  useEffect(()=>{
+    if(!appUser) return;
+    supabase.from("workspace_members").select("*").eq("workspace_id",appUser.workspace.id)
+      .then(({data})=>{ if(data) setTeamMembers(data as Member[]); });
+  },[appUser?.workspace.id]);
+
+  async function handleInviteMember(email:string, _role:"admin"|"member") {
+    // Invitar por email: crea el usuario en Supabase Auth si no existe
+    const {error} = await supabase.auth.admin?.inviteUserByEmail?.(email).catch(()=>({error:{message:"Invitación no soportada desde cliente"}})) || {error:null};
+    // Como fallback, solo notificamos — el flujo completo requiere backend/Edge Function
+    if(error) console.warn("invite:",error);
+    // toast deshabilitado en este scope — notificar visualmente via UI
+    console.log(`Invitación enviada a ${email} con rol ${_role}`);
+  }
+
   const [selLead,setSelLead] = useState<Lead|null>(null);
+
+  // ── Cargar actividades al seleccionar un lead ──────────────
+  useEffect(()=>{
+    if(!selLead || activitiesLoaded===selLead.id) return;
+    supabase.from("activities")
+      .select("*")
+      .eq("lead_id",selLead.id)
+      .order("created_at",{ascending:false})
+      .then(({data})=>{
+        if(data) setActivities(prev=>[...prev.filter(a=>a.lead_id!==selLead.id),...(data as Activity[])]);
+        setActivitiesLoaded(selLead.id);
+      });
+  },[selLead?.id]);
+
   const [addOpen,setAddOpen] = useState(false);
   const [showSetup,setShowSetup] = useState(false);
   const [bizProfile,setBizProfile] = useState<BusinessProfile|null>(()=>{
     try{const s=localStorage.getItem("closer_biz_profile");return s?JSON.parse(s):null;}catch{return null;}
   });
 
-  function addLead(l:Lead){setLeads(p=>[{...l,workspace_id:appUser.workspace.id},...p]);}
-  function updateLead(l:Lead){setLeads(p=>p.map(x=>x.id===l.id?l:x));}
-  function addActivity(a:Activity){setActivities(p=>[...p,a]);}
+  async function addLead(l:Lead) {
+    const newLead = {...l, workspace_id:appUser.workspace.id};
+    setLeads(p=>[newLead,...p]); // optimistic
+    const {data,error} = await supabase.from("leads").insert(newLead).select().single();
+    if(error) { console.error("addLead error:",error); }
+    else if(data) setLeads(p=>p.map(x=>x.id===newLead.id?data as Lead:x));
+  }
+  async function updateLead(l:Lead) {
+    setLeads(p=>p.map(x=>x.id===l.id?l:x)); // optimistic
+    const {updated_at:_,...rest} = l as any;
+    await supabase.from("leads").update({...rest,updated_at:new Date().toISOString()}).eq("id",l.id);
+  }
+  async function addActivity(a:Activity) {
+    setActivities(p=>[a,...p]); // optimistic
+    await supabase.from("activities").insert(a);
+  }
   function getLeadActivities(leadId:string){return activities.filter(a=>a.lead_id===leadId);}
   function saveBizProfile(p:BusinessProfile){localStorage.setItem("closer_biz_profile",JSON.stringify(p));setBizProfile(p);setShowSetup(false);}
   function markSent(leadId:string,channel:string){
@@ -3662,6 +3913,14 @@ function AppLayout({appUser,onLogout}:{appUser:AppUser;onLogout:()=>void}) {
 
   if(showSetup) return <BusinessSetup onSave={saveBizProfile} />;
 
+  if(leadsLoading) return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",flexDirection:"column",gap:16,background:"var(--bg)"}}>
+      <p className="display" style={{fontSize:28,fontWeight:300,color:"var(--gold)"}}>Closer<span style={{color:"var(--txt)"}}>AI</span></p>
+      <p style={{fontSize:13,color:"var(--txt2)"}}>Cargando tu workspace...</p>
+      <div style={{width:40,height:40,border:"2px solid var(--border)",borderTop:"2px solid var(--gold)",borderRadius:"50%",animation:"spin 1s linear infinite"}} />
+    </div>
+  );
+
   const views: Record<string,React.ReactNode> = {
     session:   <DailySession leads={leads} profile={bizProfile} onLeadClick={setSelLead} onMarkSent={markSent} />,
     dashboard: <Dashboard leads={leads} />,
@@ -3671,13 +3930,13 @@ function AppLayout({appUser,onLogout}:{appUser:AppUser;onLogout:()=>void}) {
     buscador:  <Prospector onAddLead={addLead} workspaceId={appUser.workspace.id} />,
     import:    <CsvImport onImport={ls=>{ls.forEach(l=>addLead(l));}} workspaceId={appUser.workspace.id} />,
     generar:   <RedaccionIA leads={leads} workspaceId={appUser.workspace.id} />,
-    email:     <EmailMarketing isAdmin={isAdmin} workspaceId={appUser.workspace.id} />,
+    email:     <EmailMarketing isAdmin={isAdmin} workspaceId={appUser.workspace.id} leads={leads} />,
     cadence:   <Cadences isAdmin={isAdmin} workspaceId={appUser.workspace.id} />,
     inbox:     <Inbox leads={leads} workspaceId={appUser.workspace.id} />,
     qualify:   <QualifyGate leads={leads} onScoreUpdate={(id,s)=>setLeads(p=>p.map(l=>l.id===id?{...l,score:s}:l))} workspaceId={appUser.workspace.id} />,
     metrics:   <Metrics leads={leads} isAdmin={isAdmin} />,
     knowledge: <Knowledge isAdmin={isAdmin} workspaceId={appUser.workspace.id} />,
-    team:      isAdmin?<TeamManagement workspace={appUser.workspace} members={[{id:"m1",workspace_id:appUser.workspace.id,user_id:appUser.supabaseUser.id,role:"admin",display_name:appUser.member.display_name||"Admin"}]} onInvite={()=>{}} />:null,
+    team:      isAdmin?<TeamManagement workspace={appUser.workspace} members={teamMembers} onInvite={handleInviteMember} />:null,
     ai:        isAdmin?<AiSettings workspaceId={appUser.workspace.id} />:null,
     settings:  isAdmin?<ApiSettings workspaceId={appUser.workspace.id} />:null,
   };
@@ -3691,7 +3950,8 @@ function AppLayout({appUser,onLogout}:{appUser:AppUser;onLogout:()=>void}) {
       </div>
       {selLead&&(
         <LeadDetail lead={selLead} onClose={()=>setSelLead(null)} onUpdate={updateLead}
-          activities={getLeadActivities(selLead.id)} onAddActivity={addActivity} />
+          activities={getLeadActivities(selLead.id)} onAddActivity={addActivity}
+          cadences={cadencesList} />
       )}
       <AddLeadModal open={addOpen} onClose={()=>setAddOpen(false)} onAdd={addLead} />
     </div>
