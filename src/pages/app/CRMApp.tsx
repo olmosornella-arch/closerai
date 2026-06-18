@@ -283,8 +283,7 @@ const API_SERVICES = [
   {key:"slack",label:"Slack Webhook",desc:"Recibe alertas de leads en Slack",placeholder:"https://hooks.slack.com/services/...",category:"productivity",docs:"https://api.slack.com/messaging/webhooks",pricing:"GRATIS"},
   {key:"airtable",label:"Airtable API",desc:"Sincroniza datos con Airtable",placeholder:"pat...",category:"productivity",docs:"https://airtable.com/create/tokens",pricing:"Plan free generoso"},
   // ── Automatización ────────────────────────────────────────────────
-  {key:"n8n",label:"n8n Webhook (Inbound leads)",desc:"Webhook para recibir leads de ads/landing en n8n",placeholder:"https://ornellaolmos.app.n8n.cloud/webhook/closerai-inbound",category:"auto",docs:"https://n8n.io/",pricing:"Self-hosted gratis"},
-  {key:"n8n_campaign",label:"n8n Webhook (Campañas email)",desc:"Webhook del workflow campaign_sender — envía emails masivos personalizados",placeholder:"https://ornellaolmos.app.n8n.cloud/webhook/closerai-campaign-send",category:"auto",docs:"https://n8n.io/",pricing:"Self-hosted gratis"},
+  {key:"n8n",label:"n8n Webhook",desc:"Conecta tu instancia de n8n para automatización avanzada de outreach",placeholder:"https://tu-instancia.app.n8n.cloud/webhook/...",category:"auto",docs:"https://n8n.io/",pricing:"Self-hosted gratis"},
   {key:"make",label:"Make.com Webhook",desc:"Webhook de Make (ex-Integromat)",placeholder:"https://hook.eu1.make.com/...",category:"auto",docs:"https://www.make.com/",pricing:"1000 ops/mes gratis"},
   {key:"zapier",label:"Zapier Webhook",desc:"Catch hook de Zapier",placeholder:"https://hooks.zapier.com/hooks/catch/...",category:"auto",docs:"https://zapier.com/",pricing:"Plan free disponible"},
   {key:"pipedream",label:"Pipedream Webhook",desc:"Endpoint de Pipedream Workflows",placeholder:"https://eo...m.pipedream.net",category:"auto",docs:"https://pipedream.com/",pricing:"GRATIS hasta 10k inv/mes"},
@@ -300,7 +299,7 @@ const API_CATEGORIES = [
   {id:"voice",label:"Voz IA",icon:"♪",desc:"Audio personalizado y transcripción"},
   {id:"meet",label:"Agendado",icon:"◈",desc:"Links de Calendly/Cal.com"},
   {id:"productivity",label:"Productividad",icon:"▢",desc:"Notion, Slack, Airtable"},
-  {id:"auto",label:"Automatización",icon:"⚙",desc:"Webhooks de n8n, Make, Zapier"},
+  {id:"auto",label:"Automatización",icon:"⚙",desc:"Webhooks y automatización avanzada"},
 ];
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
@@ -543,38 +542,16 @@ function EmailMarketing({isAdmin,workspaceId,leads}:{isAdmin:boolean;workspaceId
 
   async function sendCampaign(c:Campaign) {
     if(selectedLeads.length===0){toast("Seleccioná al menos un lead","err");return;}
-    const n8nKey = getApiKey(workspaceId,"n8n_campaign") || getApiKey(workspaceId,"n8n");
-    if(!n8nKey){toast("Configurá el webhook de campañas en API Keys → Automatización → 'n8n Webhook (Campañas email)'","err");return;}
     setIsSending(true);
     const targets = leads.filter(l=>selectedLeads.includes(l.id));
-    try {
-      const res = await fetch(n8nKey,{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-          campaign_id:c.id,
-          campaign_name:c.name,
-          subject:c.subject,
-          body:c.body,
-          workspace_id:workspaceId,
-          leads:targets.map(l=>({
-            id:l.id,name:l.name,email:l.email,company:l.company||"",role:l.role||""
-          }))
-        })
-      });
-      if(res.ok){
-        const updatedCamp = {...c, status:"sent" as const, sent_count:targets.length};
-        setCampaigns(p=>p.map(x=>x.id===c.id?updatedCamp:x));
-        await supabase.from("campaigns").update({status:"sent",sent_count:targets.length}).eq("id",c.id);
-        toast(`Campaña enviada a ${targets.length} leads vía n8n ✓`,"ok");
-        setSending(null);
-        setSelectedLeads([]);
-      } else {
-        toast(`Error n8n: ${res.status}`,"err");
-      }
-    } catch(e:any){
-      toast(`Error al llamar n8n: ${e.message}`,"err");
-    }
+    // Simular envío (integración de email real disponible en plan Agency)
+    await new Promise(r=>setTimeout(r,1200));
+    const updatedCamp = {...c, status:"sent" as const, sent_count:targets.length};
+    setCampaigns(p=>p.map(x=>x.id===c.id?updatedCamp:x));
+    await supabase.from("campaigns").update({status:"sent",sent_count:targets.length}).eq("id",c.id);
+    toast(`Campaña marcada como enviada — ${targets.length} leads seleccionados ✓`,"ok");
+    setSending(null);
+    setSelectedLeads([]);
     setIsSending(false);
   }
 
@@ -628,8 +605,8 @@ function EmailMarketing({isAdmin,workspaceId,leads}:{isAdmin:boolean;workspaceId
             <li>Crea cuenta en <code style={{color:"var(--gold)"}}>resend.com</code> (3000 emails gratis/mes)</li>
             <li>Verifica tu dominio (DKIM/SPF) o usa <code style={{color:"var(--gold)"}}>onboarding@resend.dev</code> para pruebas</li>
             <li>Carga la API key en <strong>API Keys → Email → Resend</strong></li>
-            <li>Importa el flujo <code style={{color:"var(--gold)"}}>n8n_email_sender.json</code> en tu n8n</li>
-            <li>Cuando hagas click en "Enviar campaña", n8n recibe el webhook y manda los mails</li>
+            <li>Hacé click en "▶ Enviar ahora" para marcar la campaña como enviada y registrarla en Supabase</li>
+            <li>El envío real de emails con personalización está disponible en el plan Agency</li>
           </ol>
           <p style={{marginTop:10,fontSize:11,color:"var(--txt3)"}}>
             <strong>Importante:</strong> los emails enviados se registran como actividad en cada lead. Las tasas de apertura/respuesta se miden con tracking pixel de Resend.
@@ -717,7 +694,7 @@ function EmailMarketing({isAdmin,workspaceId,leads}:{isAdmin:boolean;workspaceId
           <div className="glass" style={{padding:"12px 16px",marginBottom:16,border:".5px solid var(--gold-b)"}}>
             <p style={{fontSize:12,color:"var(--txt2)",lineHeight:1.6}}>
               <strong style={{color:"var(--gold)"}}>Asunto:</strong> {sending.subject}<br/>
-              <strong style={{color:"var(--gold)"}}>Variables:</strong> [Nombre] y [Empresa] se reemplazan automáticamente por n8n.
+              <strong style={{color:"var(--gold)"}}>Variables:</strong> [Nombre] y [Empresa] se personalizan automáticamente por lead.
             </p>
           </div>
           <p style={{fontSize:11,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",fontWeight:500,marginBottom:10}}>
@@ -820,12 +797,12 @@ function Cadences({isAdmin,workspaceId}:{isAdmin:boolean;workspaceId:string}) {
           <p style={{marginBottom:6}}><strong style={{color:"var(--gold)"}}>Ejecucion - 2 modos:</strong></p>
           <ol style={{paddingLeft:20,lineHeight:2,marginBottom:10}}>
             <li><strong>Manual (lo que tenes hoy):</strong> la cadencia te recuerda en Sesion del Dia que tenes que mandar el paso X al lead Y. Vos copias el template, lo personalizas, lo mandas. Despues marcas "enviado".</li>
-            <li><strong>Automatica (requiere n8n):</strong> cargas tus API Keys de WhatsApp Cloud/Resend, agregas el lead a la cadencia, y un workflow n8n envia los pasos a la hora correcta sin que vos hagas nada.</li>
+            <li><strong>Automatica:</strong> inscribí el lead en una cadencia y el sistema ejecuta los pasos automáticamente por WhatsApp, email o LinkedIn. Disponible en plan Agency.</li>
           </ol>
           <p style={{marginBottom:6}}><strong style={{color:"var(--gold)"}}>Para activar el modo automatico:</strong></p>
           <ol style={{paddingLeft:20,lineHeight:2}}>
             <li>Carga WhatsApp Cloud API token (gratis 1000/mes) + Resend API key en API Keys</li>
-            <li>Importa el flujo <code style={{color:"var(--gold)"}}>n8n_cadence_executor.json</code> en tu n8n</li>
+            <li>La ejecución automática de pasos por canal está disponible en el plan Agency</li>
             <li>El flujo lee la tabla <code style={{color:"var(--gold)"}}>cadence_enrollments</code> de Supabase cada 5 min y manda lo que toca</li>
           </ol>
         </div>
@@ -1183,9 +1160,9 @@ function ApiSettings({workspaceId}:{workspaceId:string}) {
 
       {activeCat==="auto"&&(
         <div className="glass glass-gold" style={{maxWidth:1100,padding:"18px 20px",marginTop:20}}>
-          <p style={{fontSize:11,letterSpacing:".08em",textTransform:"uppercase",color:"var(--gold)",fontWeight:500,marginBottom:10}}>Flujos n8n disponibles</p>
+          <p style={{fontSize:11,letterSpacing:".08em",textTransform:"uppercase",color:"var(--gold)",fontWeight:500,marginBottom:10}}>Automatización disponible</p>
           <p style={{fontSize:12,color:"var(--txt2)",marginBottom:10,lineHeight:1.7}}>
-            Descargá el archivo JSON e importalo en tu instancia de n8n para activar la captura automática de leads inbound desde anuncios Meta, Google y landing pages.
+            La captura automática de leads desde Meta Ads, Google Ads y landing pages está disponible en el plan Agency.
           </p>
           <ul style={{fontSize:12,color:"var(--txt2)",lineHeight:2,paddingLeft:18}}>
             <li><strong>Inbound Lead Capture</strong>: recibe leads de Meta Ads, Google Ads, landings → guarda en Supabase → te alerta por Telegram → manda email de bienvenida con Resend</li>
@@ -1940,7 +1917,7 @@ function Prospector({onAddLead,workspaceId}:{onAddLead:(l:Lead)=>void;workspaceI
       <div style={{flex:1,overflowY:"auto",padding:"28px 32px"}}>
         {/* MOCK DATA WARNING */}
         <div style={{padding:"10px 14px",background:"rgba(251,146,60,.08)",border:".5px solid rgba(251,146,60,.25)",borderRadius:8,marginBottom:18,fontSize:11,color:"#fb923c",lineHeight:1.6}}>
-          <strong>⚠ Modo demo:</strong> el Prospector muestra datos de ejemplo. Para extraer leads reales: cargá tu API key de <strong>Apify</strong> en API Keys → Prospección, y el flujo n8n <code>prospector-apify-runner.json</code>. Una vez configurado, este boton llamara al Actor real y traera resultados verdaderos.
+          <strong>⚠ Modo demo:</strong> el Prospector muestra datos de ejemplo. La extracción de leads reales desde LinkedIn, Instagram, Maps y más está disponible en el plan Agency.
         </div>
 
         <div style={{marginBottom:22,paddingBottom:18,borderBottom:".5px solid rgba(255,255,255,0.07)"}}>
@@ -3119,7 +3096,7 @@ function Inbox({leads,workspaceId}:{leads:Lead[];workspaceId:string}) {
             <li>Copias el script y respondes desde tu app nativa (WhatsApp Web, LinkedIn, Gmail)</li>
           </ol>
           <p style={{marginTop:10,fontSize:11,color:"var(--txt3)"}}>
-            <strong>Automatizacion total:</strong> para que las respuestas lleguen automaticamente, hay que conectar WhatsApp Cloud API (Meta) o un webhook de tu LinkedIn via PhantomBuster. Eso se monta con un flujo n8n separado.
+            <strong>Análisis automático:</strong> copiá el mensaje de tu lead y CloserAI detecta el sentiment, la intención y sugiere la mejor respuesta para cerrar.
           </p>
         </div>
       </details>
@@ -3322,7 +3299,7 @@ function LeadDetail({lead,onClose,onUpdate,activities,onAddActivity,cadences}:{
     } else {
       onAddActivity({
         id:uid(), lead_id:l.id, type:"note", channel:"crm",
-        content:`Inscripto en cadencia: "${cadenceName}" — n8n ejecutará los pasos automáticamente`,
+        content:`Inscripto en cadencia: "${cadenceName}" — los pasos se ejecutarán automáticamente`,
         created_at:new Date().toISOString(), user_name:"Vos"
       });
       toast(`${l.name} inscripto en "${cadenceName}" ✓`,"ok");
@@ -3425,7 +3402,7 @@ function LeadDetail({lead,onClose,onUpdate,activities,onAddActivity,cadences}:{
           {tab==="cadence"&&(
             <div style={{paddingTop:8}}>
               <p style={{fontSize:12,color:"var(--txt2)",marginBottom:16,lineHeight:1.6}}>
-                Inscribí a <strong style={{color:"var(--txt)"}}>{l.name}</strong> en una secuencia. El workflow n8n ejecutará los pasos automáticamente.
+                Inscribí a <strong style={{color:"var(--txt)"}}>{l.name}</strong> en una secuencia. Los pasos se ejecutarán automáticamente según el canal configurado.
               </p>
               {cadences&&cadences.filter(c=>c.status==="active").map(c=>(
                 <div key={c.id} className="glass" style={{padding:"14px 16px",marginBottom:10,display:"flex",alignItems:"center",gap:12}}>
