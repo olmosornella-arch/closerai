@@ -185,8 +185,9 @@ if (!document.querySelector('meta[name="viewport"]')) {
 }
 
 // ── SUPABASE CLIENT ───────────────────────────────────────────────────────────
-const SUPA_URL = import.meta.env.VITE_SUPABASE_URL || "";
-const SUPA_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+// Supabase credentials — hardcoded as fallback para garantizar conexión en Vercel
+const SUPA_URL = import.meta.env.VITE_SUPABASE_URL || "https://hajwygroqfshfkcjscnn.supabase.co";
+const SUPA_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhhand5Z3JvcWZzaGZrY2pzY25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzOTkzMzUsImV4cCI6MjA5NDk3NTMzNX0.DIA4vEHlEz1L-LcFeO1DhGfdsjBAPeGg2E8qorTiR5U";
 const supabase: SupabaseClient = createClient(SUPA_URL, SUPA_KEY);
 
 // ── TYPES ─────────────────────────────────────────────────────────────────────
@@ -3492,24 +3493,40 @@ function AuthScreen({onAuth}:{onAuth:(u:User,m:Member,w:Workspace)=>void}) {
         if(e)throw e;
         if(data.user){
           // Get member + workspace
-          const {data:mData}=await supabase.from("workspace_members").select("*,workspaces(*)").eq("user_id",data.user.id).single();
-          if(mData){
-            const m:Member={id:mData.id,workspace_id:mData.workspace_id,user_id:mData.user_id,role:mData.role,display_name:mData.display_name};
-            const w:Workspace=mData.workspaces as Workspace;
-            onAuth(data.user,m,w);
+          const {data:mData,error:mErr}=await supabase.from("workspace_members").select("*,workspaces(*)").eq("user_id",data.user.id).single();
+          if(mErr||!mData){
+            throw new Error("Usuario sin workspace. Registrate primero o pedí que te inviten.");
           }
+          const m:Member={id:mData.id,workspace_id:mData.workspace_id,user_id:mData.user_id,role:mData.role,display_name:mData.display_name};
+          const w:Workspace=mData.workspaces as Workspace;
+          onAuth(data.user,m,w);
         }
       } else {
         const {data,error:e}=await supabase.auth.signUp({email,password:pass});
         if(e)throw e;
         if(data.user){
           const slug=wsName.toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"");
-          const {data:wData}=await supabase.from("workspaces").insert({name:wsName,slug,owner_id:data.user.id}).select().single();
+          // 1. Crear workspace
+          const {data:wData,error:wErr}=await supabase.from("workspaces").insert({name:wsName,slug,owner_id:data.user.id}).select().single();
+          if(wErr)throw wErr;
           if(wData){
+            const displayName=email.split("@")[0];
+            // 2. Crear workspace_member explícitamente (no depender del trigger)
+            const memberId=crypto.randomUUID();
+            await supabase.from("workspace_members").upsert({
+              id:memberId,
+              workspace_id:wData.id,
+              user_id:data.user.id,
+              role:"admin",
+              display_name:displayName
+            },{onConflict:"workspace_id,user_id"});
+            // 3. Leer el member recién creado
             const {data:mData}=await supabase.from("workspace_members").select("*").eq("workspace_id",wData.id).eq("user_id",data.user.id).single();
             if(mData){
-              await supabase.from("workspace_members").update({display_name:email.split("@")[0]}).eq("id",mData.id);
-              onAuth(data.user,{...mData,display_name:email.split("@")[0]},wData as Workspace);
+              onAuth(data.user,{...mData,display_name:displayName},wData as Workspace);
+            } else {
+              // Fallback: usar los datos que acabamos de insertar
+              onAuth(data.user,{id:memberId,workspace_id:wData.id,user_id:data.user.id,role:"admin",display_name:displayName},wData as Workspace);
             }
           }
         }
@@ -3551,7 +3568,7 @@ function AuthScreen({onAuth}:{onAuth:(u:User,m:Member,w:Workspace)=>void}) {
           </button>
         </div>
         <p style={{textAlign:"center",fontSize:11,color:"var(--txt3)",marginTop:16}}>
-          {SUPA_URL?"Conectado a Supabase ✓":"⚠ Configurá VITE_SUPABASE_URL para auth real"}
+          {SUPA_URL.includes("supabase.co")?"✓ Conectado a Supabase":"⚠ Sin conexión a Supabase"}
         </p>
       </div>
     </div>
