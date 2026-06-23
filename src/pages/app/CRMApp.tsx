@@ -2651,14 +2651,17 @@ function BusinessSetup({onSave}:{onSave:(p:BusinessProfile)=>void}) {
           <p style={{fontSize:13,color:"var(--txt2)",marginBottom:20}}>Para trackear tu progreso diario</p>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
             {[
-              {label:"DMs por semana",field:"goal_dms" as const,placeholder:"20"},
-              {label:"Calls por semana",field:"goal_calls" as const,placeholder:"5"},
-              {label:"Cierres por semana",field:"goal_closes" as const,placeholder:"2"},
-              {label:"Ticket promedio (USD)",field:"ticket" as const,placeholder:"500"},
+              {label:"DMs por semana",field:"goal_dms" as const,placeholder:"20",min:1},
+              {label:"Calls / VSL / Acciones",field:"goal_calls" as const,placeholder:"0",min:0},
+              {label:"Cierres por semana",field:"goal_closes" as const,placeholder:"2",min:0},
+              {label:"Ticket promedio (USD)",field:"ticket" as const,placeholder:"500",min:0},
             ].map(g=>(
               <div key={g.field}>
                 <label style={{display:"block",fontSize:11,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",marginBottom:6,fontWeight:500}}>{g.label}</label>
-                <input type="number" className="inp" value={form[g.field]||""} onChange={e=>setForm(p=>({...p,[g.field]:+e.target.value}))} placeholder={g.placeholder} />
+                <input type="number" min={g.min} className="inp"
+                  value={form[g.field]===0?"0":form[g.field]||""}
+                  onChange={e=>setForm(p=>({...p,[g.field]:e.target.value===""?0:+e.target.value}))}
+                  placeholder={g.placeholder} />
               </div>
             ))}
           </div>
