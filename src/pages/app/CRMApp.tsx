@@ -3596,7 +3596,14 @@ function AuthScreen({onAuth}:{onAuth:(u:User,m:Member,w:Workspace)=>void}) {
           {mode==="register"&&<Field label="Nombre del workspace"><input className="inp" value={wsName} onChange={e=>setWsName(e.target.value)} placeholder="Ej: ComUni · Dev Remoto" /></Field>}
           <Field label="Email"><input className="inp" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="tu@email.com" onKeyDown={e=>e.key==="Enter"&&handleAuth()} /></Field>
           <Field label="Contraseña"><input className="inp" type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&handleAuth()} /></Field>
-          {error&&<p style={{fontSize:12,color:"var(--red)",marginBottom:12,padding:"8px 12px",background:"var(--red-m)",borderRadius:"var(--radius-sm)"}}>{error}</p>}
+          {error&&<p style={{
+            fontSize:12,
+            color:error.startsWith("✓")?"var(--emerald)":"var(--red)",
+            marginBottom:12,padding:"8px 12px",
+            background:error.startsWith("✓")?"rgba(16,185,129,.1)":"var(--red-m)",
+            borderRadius:"var(--radius-sm)",
+            border:error.startsWith("✓")?".5px solid rgba(16,185,129,.3)":"none"
+          }}>{error}</p>}
           <button className="btn btn-primary" style={{width:"100%",padding:"11px",marginBottom:10}} onClick={handleAuth} disabled={loading||!email||!pass||(mode==="register"&&!wsName)}>
             {loading?<Spinner/>:mode==="login"?"Entrar":"Crear workspace"}
           </button>
