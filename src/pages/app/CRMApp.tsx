@@ -545,7 +545,7 @@ function EmailMarketing({isAdmin,workspaceId,leads}:{isAdmin:boolean;workspaceId
     if(selectedLeads.length===0){toast("Seleccioná al menos un lead","err");return;}
     setIsSending(true);
     const targets = leads.filter(l=>selectedLeads.includes(l.id));
-    // Simular envío (integración de email real disponible en plan Agency)
+    // Simular envío (integración de email real se activa en Settings → API Keys)
     await new Promise(r=>setTimeout(r,1200));
     const updatedCamp = {...c, status:"sent" as const, sent_count:targets.length};
     setCampaigns(p=>p.map(x=>x.id===c.id?updatedCamp:x));
@@ -805,7 +805,7 @@ function Cadences({isAdmin,workspaceId}:{isAdmin:boolean;workspaceId:string}) {
           <p style={{marginBottom:6}}><strong style={{color:"var(--gold)"}}>Ejecucion - 2 modos:</strong></p>
           <ol style={{paddingLeft:20,lineHeight:2,marginBottom:10}}>
             <li><strong>Manual (lo que tenes hoy):</strong> la cadencia te recuerda en Sesion del Dia que tenes que mandar el paso X al lead Y. Vos copias el template, lo personalizas, lo mandas. Despues marcas "enviado".</li>
-            <li><strong>Automatica:</strong> inscribí el lead en una cadencia y el sistema ejecuta los pasos automáticamente por WhatsApp, email o LinkedIn. Disponible en plan Agency.</li>
+            <li><strong>Automatica:</strong> inscribí el lead en una cadencia y el sistema ejecuta los pasos automáticamente por WhatsApp, email o LinkedIn. Se activa con tu API key en Settings → API Keys.</li>
           </ol>
           <p style={{marginBottom:6}}><strong style={{color:"var(--gold)"}}>Para activar el modo automatico:</strong></p>
           <ol style={{paddingLeft:20,lineHeight:2}}>
@@ -1182,7 +1182,7 @@ function ApiSettings({workspaceId}:{workspaceId:string}) {
         <div className="glass glass-gold" style={{maxWidth:1100,padding:"18px 20px",marginTop:20}}>
           <p style={{fontSize:11,letterSpacing:".08em",textTransform:"uppercase",color:"var(--gold)",fontWeight:500,marginBottom:10}}>Automatización disponible</p>
           <p style={{fontSize:12,color:"var(--txt2)",marginBottom:10,lineHeight:1.7}}>
-            La captura automática de leads desde Meta Ads, Google Ads y landing pages está disponible en el plan Agency.
+            La captura automática de leads desde Meta Ads, Google Ads y landing pages está disponible con tu API key configurada en Settings.
           </p>
           <ul style={{fontSize:12,color:"var(--txt2)",lineHeight:2,paddingLeft:18}}>
             <li><strong>Inbound Lead Capture</strong>: recibe leads de Meta Ads, Google Ads, landings → guarda en Supabase → te alerta por Telegram → manda email de bienvenida con Resend</li>
@@ -1935,10 +1935,16 @@ function Prospector({onAddLead,workspaceId}:{onAddLead:(l:Lead)=>void;workspaceI
 
       {/* CENTER PANEL */}
       <div style={{flex:1,overflowY:"auto",padding:"28px 32px"}}>
-        {/* MOCK DATA WARNING */}
-        <div style={{padding:"10px 14px",background:"rgba(251,146,60,.08)",border:".5px solid rgba(251,146,60,.25)",borderRadius:8,marginBottom:18,fontSize:11,color:"#fb923c",lineHeight:1.6}}>
-          <strong>⚠ Modo demo:</strong> el Prospector muestra datos de ejemplo. La extracción de leads reales desde LinkedIn, Instagram, Maps y más está disponible en el plan Agency.
-        </div>
+        {/* APIFY STATUS BANNER */}
+        {getApiKey(workspaceId,"apify") ? (
+          <div style={{padding:"8px 14px",background:"rgba(16,185,129,.08)",border:".5px solid rgba(16,185,129,.25)",borderRadius:8,marginBottom:18,fontSize:11,color:"#10b981"}}>
+            ✓ Apify conectado — los resultados son datos reales extraídos en tiempo real.
+          </div>
+        ) : (
+          <div style={{padding:"8px 14px",background:"rgba(201,168,76,.08)",border:".5px solid rgba(201,168,76,.25)",borderRadius:8,marginBottom:18,fontSize:11,color:"var(--gold)"}}>
+            ⚡ Agregá tu <strong>Apify API key</strong> en <strong>API Keys → Prospección</strong> para extraer leads reales. Ahora mostrando datos de ejemplo.
+          </div>
+        )}
 
         <div style={{marginBottom:22,paddingBottom:18,borderBottom:".5px solid rgba(255,255,255,0.07)"}}>
           <div style={{display:"flex",alignItems:"flex-start",gap:14,marginBottom:10}}>
@@ -2034,7 +2040,7 @@ function Prospector({onAddLead,workspaceId}:{onAddLead:(l:Lead)=>void;workspaceI
             <p style={{fontSize:40,marginBottom:14}}>{activeSource.icon}</p>
             <p className="display" style={{fontSize:22,fontWeight:300,marginBottom:8}}>{activeSource.label}</p>
             <p style={{fontSize:13,color:"rgba(138,138,138,.7)",lineHeight:1.75,marginBottom:16}}>Completa los campos y clickea <strong style={{color:"var(--gold)"}}>Extraer leads</strong> para comenzar.</p>
-            <p style={{fontSize:11,color:"rgba(138,138,138,.4)",marginTop:20}}>Necesitas API Key de Apify en Settings - API Keys</p>
+            <p style={{fontSize:11,color:"rgba(138,138,138,.4)",marginTop:20}}>Cargá tu Apify API key en Settings → API Keys → Prospección para activar</p>
           </div>
         )}
       </div>
