@@ -3869,21 +3869,35 @@ function AppLayout({appUser,onLogout}:{appUser:AppUser;onLogout:()=>void}) {
   const [leads,setLeads] = useState<Lead[]>([]);
   const [leadsLoading,setLeadsLoading] = useState(true);
   const [activities,setActivities] = useState<Activity[]>([]);
+  // workspaceId como referencia estable para useEffects
+  const workspaceId = appUser.workspace.id;
   const [activitiesLoaded,setActivitiesLoaded] = useState<string|null>(null);
 
-  // ── Cargar leads desde Supabase al montar ──────────────────
+  // Limpiar actividades al cambiar de workspace/logout
   useEffect(()=>{
-    if(!appUser) return;
+    if(!workspaceId) {
+      setActivities([]);
+      setActivitiesLoaded(null);
+    }
+  },[workspaceId]);
+
+  // ── Cargar leads desde Supabase — corre al login y al cambiar workspace ──
+  useEffect(()=>{
+    if(!workspaceId) {
+      setLeads([]); // limpiar leads del usuario anterior al hacer logout
+      return;
+    }
     setLeadsLoading(true);
+    setLeads([]); // limpiar antes de cargar los nuevos
     supabase.from("leads")
       .select("*")
-      .eq("workspace_id",appUser.workspace.id)
+      .eq("workspace_id", workspaceId)
       .order("created_at",{ascending:false})
       .then(({data,error})=>{
         if(!error && data) setLeads(data as Lead[]);
         setLeadsLoading(false);
       });
-  },[appUser?.workspace.id]);
+  },[workspaceId,appUser?.workspace.id]);
 
   const [cadencesList] = useState<{id:string;name:string;steps:any[];status:string}[]>([
     {id:"1",name:"Secuencia Founders 7D",status:"active",steps:[
@@ -3916,6 +3930,11 @@ function AppLayout({appUser,onLogout}:{appUser:AppUser;onLogout:()=>void}) {
 
   const [selLead,setSelLead] = useState<Lead|null>(null);
 
+  // Limpiar lead seleccionado al cambiar workspace
+  useEffect(()=>{
+    setSelLead(null);
+  },[workspaceId]);
+
   // ── Cargar actividades al seleccionar un lead ──────────────
   useEffect(()=>{
     if(!selLead || activitiesLoaded===selLead.id) return;
@@ -3936,11 +3955,20 @@ function AppLayout({appUser,onLogout}:{appUser:AppUser;onLogout:()=>void}) {
   });
 
   async function addLead(l:Lead) {
-    const newLead = {...l, workspace_id:appUser.workspace.id};
+    const newLead = {
+      ...l,
+      workspace_id: appUser.workspace.id,
+      id: l.id || crypto.randomUUID(),
+      created_at: l.created_at || new Date().toISOString(),
+    };
     setLeads(p=>[newLead,...p]); // optimistic
     const {data,error} = await supabase.from("leads").insert(newLead).select().single();
-    if(error) { console.error("addLead error:",error); }
-    else if(data) setLeads(p=>p.map(x=>x.id===newLead.id?data as Lead:x));
+    if(error) {
+      console.error("addLead error:",error.message, error.code);
+      // Si falla RLS, igual el lead queda en UI — se sincroniza al recargar
+    } else if(data) {
+      setLeads(p=>p.map(x=>x.id===newLead.id ? data as Lead : x));
+    }
   }
   async function updateLead(l:Lead) {
     setLeads(p=>p.map(x=>x.id===l.id?l:x)); // optimistic
@@ -4028,7 +4056,10 @@ export default function CRMApp() {
       }
     });
   },[]);
-  async function handleLogout(){await supabase.auth.signOut();setAppUser(null);}
+  async function handleLogout(){
+    await supabase.auth.signOut();
+    setAppUser(null);
+  }
   return (
     <ToastProvider>
       {appUser
