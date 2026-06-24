@@ -3968,26 +3968,65 @@ function AppLayout({appUser,onLogout}:{appUser:AppUser;onLogout:()=>void}) {
       id: l.id || crypto.randomUUID(),
       created_at: l.created_at || new Date().toISOString(),
     };
-    setLeads(p=>[newLead,...p]); // optimistic
-    const {data,error} = await supabase.from("leads").insert(newLead).select().single();
-    if(error) {
-      console.error("addLead ERROR:", JSON.stringify(error));
-      // Intentar con upsert como fallback
-      const {data:d2, error:e2} = await supabase.from("leads").upsert(newLead).select().single();
-      if(e2) console.error("addLead UPSERT ERROR:", JSON.stringify(e2));
-      else if(d2) setLeads(p=>p.map(x=>x.id===newLead.id ? d2 as Lead : x));
-    } else if(data) {
-      setLeads(p=>p.map(x=>x.id===newLead.id ? data as Lead : x));
+    setLeads(p=>[newLead,...p]); // optimistic update inmediato
+
+    // Usar fetch directo a la REST API de Supabase — más confiable que el cliente JS
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token || SUPA_KEY;
+      const res = await fetch(`${SUPA_URL}/rest/v1/leads`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPA_KEY,
+          "Authorization": `Bearer ${token}`,
+          "Prefer": "return=representation"
+        },
+        body: JSON.stringify(newLead)
+      });
+      if (!res.ok) {
+        const err = await res.text();
+        console.error("addLead REST error:", res.status, err);
+      } else {
+        const data = await res.json();
+        if (data?.[0]) setLeads(p=>p.map(x=>x.id===newLead.id ? data[0] as Lead : x));
+      }
+    } catch(e) {
+      console.error("addLead fetch error:", e);
     }
   }
   async function updateLead(l:Lead) {
     setLeads(p=>p.map(x=>x.id===l.id?l:x)); // optimistic
-    const {updated_at:_,...rest} = l as any;
-    await supabase.from("leads").update({...rest,updated_at:new Date().toISOString()}).eq("id",l.id);
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token || SUPA_KEY;
+      const {updated_at:_, ...rest} = l as any;
+      await fetch(`${SUPA_URL}/rest/v1/leads?id=eq.${l.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPA_KEY,
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({...rest, updated_at: new Date().toISOString()})
+      });
+    } catch(e) { console.error("updateLead error:", e); }
   }
   async function addActivity(a:Activity) {
     setActivities(p=>[a,...p]); // optimistic
-    await supabase.from("activities").insert(a);
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token || SUPA_KEY;
+      await fetch(`${SUPA_URL}/rest/v1/activities`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPA_KEY,
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify(a)
+      });
+    } catch(e) { console.error("addActivity error:", e); }
   }
   function getLeadActivities(leadId:string){return activities.filter(a=>a.lead_id===leadId);}
   async function saveBizProfile(p:BusinessProfile){
