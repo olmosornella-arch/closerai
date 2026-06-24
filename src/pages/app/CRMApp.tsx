@@ -769,10 +769,12 @@ function Cadences({isAdmin,workspaceId}:{isAdmin:boolean;workspaceId:string}) {
 
   const CHANNELS = [{v:"linkedin",l:"LinkedIn",icon:"🔵"},{v:"email",l:"Email",icon:"✉"},{v:"whatsapp",l:"WhatsApp",icon:"💬"},{v:"call",l:"Llamada",icon:"📞"}];
 
-  function addStep() {
+  async function addStep() {
     if (!editing||!newStep.action) return;
     const step:CadenceStep = {day:newStep.day||1,channel:newStep.channel||"linkedin",action:newStep.action,template:newStep.template||""};
-    setCadences(p=>p.map(c=>c.id===editing.id?{...c,steps:[...c.steps,step].sort((a,b)=>a.day-b.day)}:c));
+    const updatedSteps = [...editing.steps,step].sort((a,b)=>a.day-b.day);
+    setCadences(p=>p.map(c=>c.id===editing.id?{...c,steps:updatedSteps}:c));
+    await supabase.from("cadences").update({steps:updatedSteps}).eq("id",editing.id);
     setEditing(p=>p?{...p,steps:[...p.steps,step].sort((a,b)=>a.day-b.day)}:p);
     setNewStep({day:(newStep.day||1)+2,channel:"email",action:"",template:""});
     toast("Paso agregado","ok");
@@ -785,7 +787,12 @@ function Cadences({isAdmin,workspaceId}:{isAdmin:boolean;workspaceId:string}) {
           <h1 className="display" style={{fontSize:36,fontWeight:300,letterSpacing:"-0.01em"}}>Cadencias</h1>
           <p style={{fontSize:13,color:"var(--txt2)",marginTop:4}}>Secuencias multicanal planificadas</p>
         </div>
-        {isAdmin&&<button className="btn btn-primary" onClick={()=>{const c:Cadence={id:uid(),workspace_id:workspaceId,name:"Nueva secuencia",steps:[],status:"active",lead_count:0};setCadences(p=>[c,...p]);setEditing(c);}}>+ Nueva cadencia</button>}
+        {isAdmin&&<button className="btn btn-primary" onClick={async ()=>{
+  const c:Cadence={id:uid(),workspace_id:workspaceId,name:"Nueva secuencia",steps:[],status:"active",lead_count:0};
+  setCadences(p=>[c,...p]);
+  setEditing(c);
+  await supabase.from("cadences").insert({...c,created_at:new Date().toISOString()});
+}}>+ Nueva cadencia</button>}
       </div>
 
       {/* How it works */}
@@ -848,7 +855,7 @@ function Cadences({isAdmin,workspaceId}:{isAdmin:boolean;workspaceId:string}) {
       <Modal open={!!editing} onClose={()=>setEditing(null)} title={editing?.name||""} width={660}>
         {editing&&(<>
           <Field label="Nombre de la secuencia">
-            <input className="inp" value={editing.name} onChange={e=>{const n={...editing,name:e.target.value};setEditing(n);setCadences(p=>p.map(c=>c.id===editing.id?n:c));}} />
+            <input className="inp" value={editing.name} onChange={async e=>{const n={...editing,name:e.target.value};setEditing(n);setCadences(p=>p.map(c=>c.id===editing.id?n:c));await supabase.from("cadences").update({name:e.target.value}).eq("id",editing.id);}} />
           </Field>
           <p style={{fontSize:11,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",fontWeight:500,marginBottom:12}}>Pasos ({editing.steps.length})</p>
           {editing.steps.map((step,i)=>(
@@ -858,7 +865,7 @@ function Cadences({isAdmin,workspaceId}:{isAdmin:boolean;workspaceId:string}) {
                 <p style={{fontSize:12,fontWeight:500}}>Día {step.day} — {step.action}</p>
                 <p style={{fontSize:11,color:"var(--txt2)",marginTop:2}}>{step.template.slice(0,60)}{step.template.length>60?"...":""}</p>
               </div>
-              <button className="btn btn-danger" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>{const steps=editing.steps.filter((_,j)=>j!==i);const n={...editing,steps};setEditing(n);setCadences(p=>p.map(c=>c.id===editing.id?n:c));}}>×</button>
+              <button className="btn btn-danger" style={{fontSize:11,padding:"4px 10px"}} onClick={async ()=>{const steps=editing.steps.filter((_,j)=>j!==i);const n={...editing,steps};setEditing(n);setCadences(p=>p.map(c=>c.id===editing.id?n:c));await supabase.from("cadences").update({steps}).eq("id",editing.id);}}>×</button>
             </div>
           ))}
           <div className="glass" style={{padding:"16px",marginTop:12}}>
@@ -899,12 +906,24 @@ function Knowledge({isAdmin,workspaceId}:{isAdmin:boolean;workspaceId:string}) {
   const [search,setSearch] = useState("");
   const toast = useToast();
 
+  useEffect(()=>{
+    supabase.from("knowledge_base").select("*").eq("workspace_id",workspaceId)
+      .order("created_at",{ascending:false})
+      .then(({data})=>{ if(data && data.length>0) setItems(data as KnowledgeItem[]); });
+  },[workspaceId]);
+
   const filtered = items.filter(i=>i.category===activeCategory&&(search===""||i.title.toLowerCase().includes(search.toLowerCase())||i.content.toLowerCase().includes(search.toLowerCase())));
 
-  function save() {
+  async function save() {
     if (!editing) return;
-    if (isNew) setItems(p=>[{...editing,id:uid()},...p]);
-    else setItems(p=>p.map(x=>x.id===editing.id?editing:x));
+    if (isNew) {
+      const newItem = {...editing, id:uid(), workspace_id:workspaceId, created_at:new Date().toISOString()};
+      setItems(p=>[newItem,...p]);
+      await supabase.from("knowledge_base").insert(newItem);
+    } else {
+      setItems(p=>p.map(x=>x.id===editing.id?editing:x));
+      await supabase.from("knowledge_base").update(editing).eq("id",editing.id);
+    }
     toast(isNew?"Ítem creado":"Guardado","ok");
     setEditing(null);
   }
@@ -3488,6 +3507,14 @@ function AuthScreen({onAuth}:{onAuth:(u:User,m:Member,w:Workspace)=>void}) {
   const [email,setEmail]=useState("");const [pass,setPass]=useState("");
   const [wsName,setWsName]=useState("");const [loading,setLoading]=useState(false);
   const [error,setError]=useState("");
+  async function resetPassword() {
+    if(!email){setError("Ingresá tu email primero");return;}
+    setLoading(true);setError("");
+    const {error:e}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin});
+    setLoading(false);
+    if(e)setError(e.message);
+    else setError("✓ Te enviamos un email para restablecer tu contraseña. Revisá tu bandeja.");
+  }
   async function handleAuth() {
     setLoading(true);setError("");
     try {
@@ -3505,36 +3532,44 @@ function AuthScreen({onAuth}:{onAuth:(u:User,m:Member,w:Workspace)=>void}) {
           onAuth(data.user,m,w);
         }
       } else {
+        let userId:string|undefined;
         const {data,error:e}=await supabase.auth.signUp({email,password:pass});
-        if(e)throw e;
-        if(data.user){
-          const slug=wsName.toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"");
-          // 1. Crear workspace
-          const {data:wData,error:wErr}=await supabase.from("workspaces").insert({name:wsName,slug,owner_id:data.user.id}).select().single();
+        if(e){
+          // Si ya está registrado, intentamos loguear con la contraseña ingresada
+          if(e.message.toLowerCase().includes("already")||e.message.toLowerCase().includes("registrado")){
+            const {data:loginData,error:loginErr}=await supabase.auth.signInWithPassword({email,password:pass});
+            if(loginErr)throw new Error("Este email ya está registrado. Usá 'Iniciar sesión' con tu contraseña, o tocá 'Olvidé mi contraseña'.");
+            userId=loginData.user?.id;
+          } else throw e;
+        } else {
+          userId=data.user?.id;
+        }
+        if(userId){
+          const displayName=email.split("@")[0];
+          // ¿Ya tiene workspace? (caso usuario huérfano)
+          const {data:existing}=await supabase.from("workspace_members").select("*,workspaces(*)").eq("user_id",userId).maybeSingle();
+          if(existing&&existing.workspaces){
+            onAuth({id:userId,email} as User,{id:existing.id,workspace_id:existing.workspace_id,user_id:userId,role:existing.role,display_name:existing.display_name},existing.workspaces as Workspace);
+            setLoading(false);return;
+          }
+          // Crear workspace nuevo
+          const slug=(wsName||displayName).toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"")+"-"+Math.random().toString(36).slice(2,6);
+          const {data:wData,error:wErr}=await supabase.from("workspaces").insert({name:wsName||displayName,slug,owner_id:userId}).select().single();
           if(wErr)throw wErr;
           if(wData){
-            const displayName=email.split("@")[0];
-            // 2. Crear workspace_member explícitamente (no depender del trigger)
             const memberId=crypto.randomUUID();
-            await supabase.from("workspace_members").upsert({
-              id:memberId,
-              workspace_id:wData.id,
-              user_id:data.user.id,
-              role:"admin",
-              display_name:displayName
-            },{onConflict:"workspace_id,user_id"});
-            // 3. Leer el member recién creado
-            const {data:mData}=await supabase.from("workspace_members").select("*").eq("workspace_id",wData.id).eq("user_id",data.user.id).single();
-            if(mData){
-              onAuth(data.user,{...mData,display_name:displayName},wData as Workspace);
-            } else {
-              // Fallback: usar los datos que acabamos de insertar
-              onAuth(data.user,{id:memberId,workspace_id:wData.id,user_id:data.user.id,role:"admin",display_name:displayName},wData as Workspace);
-            }
+            await supabase.from("workspace_members").upsert({id:memberId,workspace_id:wData.id,user_id:userId,role:"admin",display_name:displayName},{onConflict:"workspace_id,user_id"});
+            const {data:mData}=await supabase.from("workspace_members").select("*").eq("workspace_id",wData.id).eq("user_id",userId).single();
+            onAuth({id:userId,email} as User,mData?{...mData,display_name:displayName}:{id:memberId,workspace_id:wData.id,user_id:userId,role:"admin",display_name:displayName},wData as Workspace);
           }
         }
       }
-    } catch(e:any){setError(e.message||"Error de autenticación")}
+    } catch(e:any){
+      let msg=e.message||"Error de autenticación";
+      if(msg.toLowerCase().includes("invalid login")||msg.toLowerCase().includes("credentials"))
+        msg="Email o contraseña incorrectos. Si olvidaste tu contraseña, tocá '¿Olvidaste tu contraseña?'";
+      setError(msg);
+    }
     setLoading(false);
   }
 
@@ -3551,7 +3586,7 @@ function AuthScreen({onAuth}:{onAuth:(u:User,m:Member,w:Workspace)=>void}) {
       <div style={{maxWidth:420,width:"100%",padding:24}}>
         <div style={{textAlign:"center",marginBottom:44}}>
           <p className="display" style={{fontSize:48,fontWeight:300,letterSpacing:"-0.02em"}}>Closer<span style={{color:"var(--gold)"}}>AI</span></p>
-          <p style={{fontSize:12,color:"var(--txt3)",marginTop:6,letterSpacing:".1em",textTransform:"uppercase"}}>B2B Engine · v4</p>
+          <p style={{fontSize:12,color:"var(--txt3)",marginTop:6,letterSpacing:".1em",textTransform:"uppercase"}}>Motor B2B · v11</p>
         </div>
         <div className="tab-bar" style={{marginBottom:24}}>
           <button className={`tab-btn ${mode==="login"?"active":""}`} onClick={()=>setMode("login")}>Iniciar sesión</button>
@@ -3565,6 +3600,11 @@ function AuthScreen({onAuth}:{onAuth:(u:User,m:Member,w:Workspace)=>void}) {
           <button className="btn btn-primary" style={{width:"100%",padding:"11px",marginBottom:10}} onClick={handleAuth} disabled={loading||!email||!pass||(mode==="register"&&!wsName)}>
             {loading?<Spinner/>:mode==="login"?"Entrar":"Crear workspace"}
           </button>
+          {mode==="login"&&(
+            <button className="btn btn-ghost" style={{width:"100%",fontSize:12,marginBottom:6,color:"var(--gold)"}} onClick={resetPassword} disabled={loading}>
+              ¿Olvidaste tu contraseña?
+            </button>
+          )}
           <div style={{height:.5,background:"var(--border)",margin:"14px 0"}} />
           <button className="btn btn-ghost" style={{width:"100%",fontSize:12}} onClick={demoMode}>
             Modo demo (sin Supabase)
@@ -3899,7 +3939,13 @@ function AppLayout({appUser,onLogout}:{appUser:AppUser;onLogout:()=>void}) {
     await supabase.from("activities").insert(a);
   }
   function getLeadActivities(leadId:string){return activities.filter(a=>a.lead_id===leadId);}
-  function saveBizProfile(p:BusinessProfile){localStorage.setItem("closer_biz_profile",JSON.stringify(p));setBizProfile(p);setShowSetup(false);}
+  async function saveBizProfile(p:BusinessProfile){
+    localStorage.setItem("closer_biz_profile",JSON.stringify(p));
+    setBizProfile(p);
+    // También en Supabase para sync multi-dispositivo
+    await supabase.from("workspaces").update({settings:p}).eq("id",appUser.workspace.id);
+    setShowSetup(false);
+  }
   function markSent(leadId:string,channel:string){
     const lead=leads.find(l=>l.id===leadId);if(!lead)return;
     updateLead({...lead,stage:lead.stage==="Nuevo"?"Contactado":lead.stage,last_action:`DM via ${channel}`});
