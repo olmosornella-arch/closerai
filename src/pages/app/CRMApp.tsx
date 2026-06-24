@@ -188,7 +188,14 @@ if (!document.querySelector('meta[name="viewport"]')) {
 // Supabase credentials — hardcoded as fallback para garantizar conexión en Vercel
 const SUPA_URL = import.meta.env.VITE_SUPABASE_URL || "https://hajwygroqfshfkcjscnn.supabase.co";
 const SUPA_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhhand5Z3JvcWZzaGZrY2pzY25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzOTkzMzUsImV4cCI6MjA5NDk3NTMzNX0.DIA4vEHlEz1L-LcFeO1DhGfdsjBAPeGg2E8qorTiR5U";
-const supabase: SupabaseClient = createClient(SUPA_URL, SUPA_KEY);
+const supabase: SupabaseClient = createClient(SUPA_URL, SUPA_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storage: window.localStorage,
+  }
+});
 
 // ── TYPES ─────────────────────────────────────────────────────────────────────
 interface Lead {
@@ -3964,8 +3971,11 @@ function AppLayout({appUser,onLogout}:{appUser:AppUser;onLogout:()=>void}) {
     setLeads(p=>[newLead,...p]); // optimistic
     const {data,error} = await supabase.from("leads").insert(newLead).select().single();
     if(error) {
-      console.error("addLead error:",error.message, error.code);
-      // Si falla RLS, igual el lead queda en UI — se sincroniza al recargar
+      console.error("addLead ERROR:", JSON.stringify(error));
+      // Intentar con upsert como fallback
+      const {data:d2, error:e2} = await supabase.from("leads").upsert(newLead).select().single();
+      if(e2) console.error("addLead UPSERT ERROR:", JSON.stringify(e2));
+      else if(d2) setLeads(p=>p.map(x=>x.id===newLead.id ? d2 as Lead : x));
     } else if(data) {
       setLeads(p=>p.map(x=>x.id===newLead.id ? data as Lead : x));
     }
