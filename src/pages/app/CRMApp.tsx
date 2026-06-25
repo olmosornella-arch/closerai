@@ -385,7 +385,16 @@ const API_CATEGORIES = [
 ];
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
-const uid = () => Math.random().toString(36).slice(2,9);
+const uid = () => {
+  // Genera UUID v4 real — compatible con columnas uuid de Supabase
+  if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
+  // Fallback para navegadores viejos
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    const v = c === "x" ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
 const tempColor = (t: string) => t==="Hot"?"#f87171":t==="Warm"?"#C9A84C":"#64748b";
 const scoreColor = (s: number) => s>=9?"#10b981":s>=7?"#C9A84C":"#64748b";
 const fmtPct = (n: number, d: number) => d===0?"0%":`${Math.round((n/d)*100)}%`;
