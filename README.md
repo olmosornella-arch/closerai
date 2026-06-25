@@ -1,234 +1,150 @@
-<div align="center">
+# CloserAI — Motor B2B de Ventas con IA
 
-# CloserAI
+> **CRM inteligente para equipos de ventas B2B que quieren prospectar, calificar y cerrar más en menos tiempo.**
 
-### B2B Sales Engine · Multi-Channel Lead Generation Platform
-
-A full-stack SaaS that consolidates LinkedIn, Instagram, Facebook, Google Maps and web scraping into a unified prospecting workflow — with built-in CRM, AI message generation, qualification scoring, email campaigns and multi-channel cadences.
-
-[Live Demo](https://closerai-olive.vercel.app) · [Report Bug](https://github.com/olmosornella-arch/closerai/issues) · [Request Feature](https://github.com/olmosornella-arch/closerai/issues)
-
-![Status](https://img.shields.io/badge/status-production-success)
-![License](https://img.shields.io/badge/license-MIT-blue)
-![Stack](https://img.shields.io/badge/stack-React%20%2B%20Supabase-blueviolet)
-![Deploy](https://img.shields.io/badge/deploy-Vercel-black)
-
-</div>
+🔗 **App en vivo:** [closerai-olive.vercel.app](https://closerai-olive.vercel.app)  
+🛠️ **Stack:** React 18 · TypeScript · Supabase · Vite · IA Multi-proveedor  
+📍 **Origen:** Mendoza, Argentina — construido por [@olmosornella](https://github.com/olmosornella-arch)
 
 ---
 
-## Overview
+## ¿Qué resuelve?
 
-CloserAI is a production-grade B2B prospecting platform built for solo founders, sales setters and small agencies that need to move fast across multiple lead sources without losing organization. It replaces the typical fragmented workflow (LinkedIn Sales Navigator + Apollo + Lemlist + a CRM + a spreadsheet) with one unified interface.
+Los equipos de ventas B2B pierden horas cada día en tareas que no cierran negocios:
 
-Built with a "Silent Luxury" design philosophy — minimalist, sophisticated, navy and gold — it ships with role-based access control, encrypted API key storage, and a multi-tenant architecture suitable for small teams.
+| Problema | Solución en CloserAI |
+|---|---|
+| Prospección manual lenta en LinkedIn | Prospector con 17 fuentes + Apify |
+| Mensajes genéricos con 2% de respuesta | Redacción IA con 5 tonos personalizados |
+| Leads sin calificar que nunca van a comprar | Qualify Gate BANT con scoring automático |
+| Seguimiento caótico, leads olvidados | Pipeline visual + Cadencias multicanal |
+| Sin métricas reales de outreach | Dashboard con KPIs en tiempo real |
 
-## Key Features
+---
 
-### Lead Prospecting Engine
-14 integrated data sources via Apify Actors:
+## Funciona. Se ve bien. Resuelve un problema real.
 
-| Platform | Sources |
-|----------|---------|
-| **LinkedIn** | Post commenters · Keyword search · Profile enrichment · Company employees |
-| **Instagram** | Hashtag scraper · Profile scraper · Phone number extractor |
-| **Facebook** | Business pages · Post commenters · Phone extractor · User search |
-| **Google Maps** | Local businesses with phone, email, rating, website |
-| **Multi-platform** | Web Contact Scraper · ZoomInfo alternative |
+**✅ Funciona** — La app está deployada en Vercel con Supabase como backend. Registro, login, pipeline, IA, métricas y persistencia funcionan en producción.
 
-Each source displays contact chips (email, phone, LinkedIn, Instagram, Facebook, website), filters by platform, and bulk-adds to the CRM with one click.
+**✅ Se ve bien** — Diseño "Silent Luxury": navy, esmeralda y dorado. Tipografía Cormorant Garamond + DM Sans. Dark theme. 100% responsive, instalable como PWA en Android.
 
-### Full CRM Suite
-- **Pipeline Kanban** with 5 customizable stages
-- **Closer View** — leads sorted by score for prioritization
-- **Dashboard** with daily mission and real-time KPIs
-- **AI Message Generation** — direct, empathetic and VSL tones
-- **Inbox Analyzer** — AI-powered response classification
+**✅ Problema real** — Lo construí para resolver mi propio flujo de ventas B2B. Hoy lo uso para gestionar leads de ComUni (mi workspace actual), el nicho de Dev Remoto USD y afiliados.
 
-### Sales Intelligence
-- **Qualify Gate** — interactive BANT scoring (Budget · Authority · Need · Timeline)
-- **Metrics Dashboard** — DMs sent, reply rate, meeting rate, revenue tracking
-- **Funnel visualization** by stage and temperature (Hot/Warm/Cold)
-- **7d / 30d** performance windows with historical charts
+---
 
-### Multi-Channel Outreach
-- **Email Campaigns** — draft, schedule, send with open/reply tracking
-- **Cadences Builder** — visual multi-channel sequences (LinkedIn → Email → WhatsApp → Call)
-- **Knowledge Base** — DM templates, objection handling scripts, closing playbooks
-
-### Team & Security
-- **Role-based access control** — Admin / Member with granular permissions
-- **API Keys vault** — encrypted, admin-only visibility
-- **Multi-workspace support** — separate projects with isolated data
-- **Row Level Security** at the database layer via Supabase RLS
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| **Frontend** | React 18, TypeScript, Vite |
-| **Styling** | Custom CSS-in-JS with design tokens (Cormorant Garant + DM Sans + DM Mono) |
-| **Backend** | Supabase (PostgreSQL + Auth + RLS) |
-| **Auth** | Supabase Auth (email/password + session persistence) |
-| **External APIs** | Apify Actors for lead extraction |
-| **Deployment** | Vercel (CI/CD via GitHub) |
-
-## Architecture
+## Demo en 5 minutos
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      CloserAI Frontend                       │
-│                    (React + TypeScript)                      │
-└────────────────┬────────────────────────────┬───────────────┘
-                 │                            │
-        ┌────────▼─────────┐         ┌────────▼─────────┐
-        │    Supabase      │         │   Apify Actors   │
-        │  Auth + DB + RLS │         │  (14 sources)    │
-        └──────────────────┘         └──────────────────┘
-                 │
-        ┌────────▼─────────────────────────────────────┐
-        │  PostgreSQL Schema                            │
-        │  workspaces · workspace_members · leads       │
-        │  api_keys · email_campaigns · cadences        │
-        │  knowledge_items · metrics_daily              │
-        └───────────────────────────────────────────────┘
+1. Abrí closerai-olive.vercel.app
+2. Click "Modo demo" — sin cuenta requerida
+3. Explorá el Pipeline con leads reales del nicho B2B
+4. Probá Redacción IA → generá un mensaje personalizado
+5. Andá a Qualify Gate → calificá un lead con BANT + análisis IA
 ```
 
-## Design System
+O creá tu cuenta gratis y empezá desde cero.
 
-Built on a "Silent Luxury" aesthetic — minimalist, sophisticated, restrained.
+---
 
-```
-Background:    #07090F          (deep midnight)
-Surface:       rgba(255,255,255,0.035)  (subtle glass)
-Accent:        #C9A84C          (muted gold)
-Success:       #10b981          (emerald)
-Text Primary:  #EAE6DF          (warm ivory)
-Text Muted:    #8A8A8A          (graphite)
+## Features principales
 
-Display Font:  Cormorant Garant (serif, weight 300)
-Body Font:     DM Sans
-Mono Font:     DM Mono (for numbers)
-```
+- **🎯 Pipeline CRM** — Kanban visual, drag & drop, historial de actividades
+- **✦ Redacción IA** — 6 proveedores (Claude, GPT, Groq gratis, Gemini, DeepSeek), 5 tonos
+- **◉ Prospector B2B** — 17 fuentes: LinkedIn, Instagram, Maps, TikTok, YouTube, Crunchbase
+- **◆ Qualify Gate** — Scoring BANT 1-10 + análisis IA con probabilidad de cierre
+- **⚡ Cadencias** — Secuencias multicanal LinkedIn + Email + WhatsApp
+- **✉ Email Marketing** — Campañas con variables dinámicas y selección de leads
+- **📥 Inbox IA** — Detecta sentiment e intención, sugiere respuesta
+- **📊 Métricas** — KPIs reales: DMs, respuestas, cierres, revenue USD
+- **🔑 41 integraciones** — APIs en 9 categorías configurables por workspace
 
-Glassmorphism cards, generous spacing (24px+ padding), three-tier typography hierarchy, and gold accent lines for emphasis. No emojis in the UI — only typographic symbols (◈ ◐ ◉ ✦ ◆) for icon language.
+---
 
-## Getting Started
-
-### Prerequisites
-- Node.js 18+
-- A Supabase project ([create one free](https://supabase.com))
-- An Apify account ([sign up](https://apify.com))
-
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/olmosornella-arch/closerai.git
-cd closerai
-
-# Install dependencies
-npm install
-
-# Set up environment variables
-cp .env.example .env.local
-# Edit .env.local with your Supabase credentials
-```
-
-### Environment Variables
-
-Create `.env.local` at the project root:
-
-```env
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
-```
-
-API keys for Apify and other services are managed inside the app via the encrypted **Settings → API Keys** panel (admin only). They are never committed to the repository.
-
-### Database Setup
-
-1. Open your Supabase project → SQL Editor
-2. Run the schema from `supabase_schema.sql`
-3. The script creates all tables, RLS policies and triggers
-
-### Run Locally
-
-```bash
-npm run dev
-# Open http://localhost:5173
-```
-
-### Deploy to Vercel
-
-```bash
-[vercel --prod]
-```
-
-Don't forget to add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Vercel's Environment Variables settings.
-
-## Project Structure
+## Stack técnico
 
 ```
-closerai/
-├── src/
-│   ├── pages/app/
-│   │   └── CRMApp.tsx         # Main app component (single-file architecture)
-│   ├── lib/                   # Utilities and helpers
-│   └── main.tsx               # React entry point
-├── public/                    # Static assets
-├── supabase_schema.sql        # Database schema with RLS policies
-├── .env.local                 # Local environment variables (gitignored)
-├── package.json
-└── vite.config.ts
+Frontend:  React 18 + TypeScript + Vite
+Backend:   Supabase (PostgreSQL + Auth + RLS)
+Deploy:    Vercel (auto-deploy desde GitHub)
+IA:        Anthropic · OpenAI · Groq · Gemini · DeepSeek · OpenRouter
+Scraping:  Apify (LinkedIn, Instagram, Maps, TikTok, YouTube)
+Auth:      Supabase Auth (email/password + JWT)
 ```
+
+---
+
+## Arquitectura
+
+```
+Multi-tenant: cada usuario tiene su workspace aislado
+API-key-first: el usuario aporta sus propias keys de IA (costo ~$2-5 USD/mes)
+Single-file: toda la app en CRMApp.tsx (~4000 líneas, arquitectura intencional)
+PWA-ready: instalable en Android desde Chrome sin Play Store
+```
+
+---
+
+## Estado actual
+
+- ✅ Deployada en Vercel (producción)
+- ✅ Backend Supabase con persistencia real
+- ✅ Auth funcionando (registro + login + reset password)
+- ✅ IA multi-proveedor operativa
+- ✅ Pipeline con leads reales del nicho Dev Remoto USD
+- 🔄 En proceso: integración de pagos Stripe (v12)
+- 🔄 En proceso: app Android nativa con Capacitor.js
+
+---
 
 ## Roadmap
 
-- [ ] Real Apify integration (currently using mock data — schema is ready)
-- [ ] Native LinkedIn OAuth for personal account scraping
-- [ ] Webhook integrations with n8n / Make / Zapier
-- [ ] Mobile-responsive layout optimization
-- [ ] Custom domain support per workspace
-- [ ] Stripe billing for team plans
-- [ ] AI-powered lead scoring (predicting close probability)
-- [ ] Slack and Discord integration for team alerts
-
-## Demo Mode
-
-The app includes a demo mode that bypasses authentication — useful for portfolio reviews and quick exploration. Visit the live demo and click "Modo demo" on the login screen.
-
-## What I Built
-
-This is a solo project — every architectural decision, every line of code, every design token. Highlights of the engineering work:
-
-- **Single-file React architecture** (~1600 LOC) for fast iteration and easy deployment
-- **Multi-tenant database design** with Row Level Security enforced at the PostgreSQL layer
-- **Role-based access control** that hides API keys from non-admin users at the database level (not just the UI)
-- **Custom design system** built from scratch — no Tailwind, no Material UI, no shadcn
-- **14 Apify Actor integrations** mapped to a unified Lead interface
-- **Progressive enhancement** — works offline in demo mode, persists to Supabase when configured
-
-## Why I Built This
-
-I run B2B prospecting operations for digital communities and SaaS products. The existing tools forced me into either expensive enterprise stacks (Apollo + Outreach + Salesforce) or a chaotic patchwork of free tools that didn't talk to each other. CloserAI is the tool I wanted to use myself — and the codebase doubles as a portfolio piece demonstrating full-stack capabilities, design sensibility and product thinking.
-
-## License
-
-MIT © Ornella Olmos
-
-## Connect
-
-- **Portfolio:** (https://closerai-olive.vercel.app/)
-- **LinkedIn:** www.linkedin.com/in/ornella-olmos-motos
-- **Email:** olmosornella@gmail.com
+| Versión | Feature | Estado |
+|---|---|---|
+| v11 | Supabase persistencia + Auth + IA multi-proveedor | ✅ Live |
+| v12 | Stripe billing · Android nativo · Apollo import | 🔄 Q3 2026 |
+| v13 | WhatsApp API nativa · iOS · Módulo afiliados | 📅 Q4 2026 |
+| v14 | White-label · API pública · Señales IA | 📅 Q1 2027 |
 
 ---
 
-<div align="center">
+## Comercialización
 
-**Built with ❤️ in Mendoza, Argentina**
+Modelo SaaS con 3 planes:
 
-If you find this project interesting, consider giving it a ⭐ — it helps a lot.
+| Plan | Precio | Leads | IA |
+|---|---|---|---|
+| Starter | $29/mes | 500 | — |
+| Pro | $79/mes | 5.000 | ✅ |
+| Agency | $199/mes | Ilimitados | ✅ |
 
-</div>
+---
+
+## Correr localmente
+
+```bash
+git clone https://github.com/olmosornella-arch/closerai
+cd closerai
+npm install
+
+# Crear .env.local con:
+# VITE_SUPABASE_URL=tu_url
+# VITE_SUPABASE_ANON_KEY=tu_key
+
+npm run dev
+```
+
+---
+
+## Contacto
+
+**Ornella Olmos** — AI Operations & Growth Engineer  
+📍 Mendoza, Argentina  
+📧 olmosornella@gmail.com  
+🔗 [linkedin.com/in/ornellaolmos](https://linkedin.com/in/ornellaolmos)
+
+---
+
+<p align="center">
+  <strong>CloserAI v11 · Motor B2B · Junio 2026</strong><br/>
+  <em>Construido para closers que prospectan solos y quieren sistematizar sin perder el toque humano.</em>
+</p>
