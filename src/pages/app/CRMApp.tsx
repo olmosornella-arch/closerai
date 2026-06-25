@@ -197,6 +197,80 @@ const supabase: SupabaseClient = createClient(SUPA_URL, SUPA_KEY, {
   }
 });
 
+// ── Helper central para escribir a Supabase via REST API directa ──────────────
+// Evita problemas de JWT con el cliente JS en el browser
+async function dbInsert(table: string, data: object): Promise<{ok:boolean;data?:any;error?:string}> {
+  try {
+    const session = await supabase.auth.getSession();
+    const token = session.data.session?.access_token || SUPA_KEY;
+    const res = await fetch(`${SUPA_URL}/rest/v1/${table}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SUPA_KEY,
+        "Authorization": `Bearer ${token}`,
+        "Prefer": "return=representation"
+      },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      console.error(`dbInsert ${table} error:`, res.status, err);
+      return {ok:false, error:err};
+    }
+    const result = await res.json();
+    return {ok:true, data: Array.isArray(result) ? result[0] : result};
+  } catch(e:any) {
+    console.error(`dbInsert ${table} exception:`, e);
+    return {ok:false, error:e.message};
+  }
+}
+
+async function dbUpdate(table: string, id: string, data: object): Promise<{ok:boolean}> {
+  try {
+    const session = await supabase.auth.getSession();
+    const token = session.data.session?.access_token || SUPA_KEY;
+    const res = await fetch(`${SUPA_URL}/rest/v1/${table}?id=eq.${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SUPA_KEY,
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      console.error(`dbUpdate ${table} error:`, res.status, err);
+    }
+    return {ok: res.ok};
+  } catch(e:any) {
+    console.error(`dbUpdate ${table} exception:`, e);
+    return {ok:false};
+  }
+}
+
+async function dbSelect(table: string, filters: Record<string,string> = {}, order = "created_at.desc"): Promise<any[]> {
+  try {
+    const session = await supabase.auth.getSession();
+    const token = session.data.session?.access_token || SUPA_KEY;
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([k,v]) => params.append(k, `eq.${v}`));
+    params.append("order", order);
+    const res = await fetch(`${SUPA_URL}/rest/v1/${table}?${params.toString()}`, {
+      headers: {
+        "apikey": SUPA_KEY,
+        "Authorization": `Bearer ${token}`,
+        "Accept": "application/json"
+      }
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch(e) {
+    return [];
+  }
+}
+
 // ── TYPES ─────────────────────────────────────────────────────────────────────
 interface Lead {
   id: string; workspace_id: string; assigned_to?: string;
@@ -536,15 +610,10 @@ function EmailMarketing({isAdmin,workspaceId,leads}:{isAdmin:boolean;workspaceId
   // ── Cargar campañas desde Supabase ────────────────────────
   useEffect(()=>{
     setCampaignsLoading(true);
-    supabase.from("campaigns")
-      .select("*")
-      .eq("workspace_id",workspaceId)
-      .order("created_at",{ascending:false})
-      .then(({data})=>{
-        if(data && data.length>0) setCampaigns(data as Campaign[]);
-        else setCampaigns([]); // workspace nuevo = sin campañas
-        setCampaignsLoading(false);
-      });
+    dbSelect("campaigns", {workspace_id: workspaceId}).then(data=>{
+      setCampaigns(data as Campaign[]);
+      setCampaignsLoading(false);
+    });
   },[workspaceId]);
   const toast = useToast();
 
@@ -574,12 +643,12 @@ function EmailMarketing({isAdmin,workspaceId,leads}:{isAdmin:boolean;workspaceId
     if (!editing) return;
     if (isNew) {
       const newCamp = {...editing, id:uid(), workspace_id:workspaceId, created_at:new Date().toISOString()};
-      setCampaigns(p=>[newCamp,...p]); // optimistic
-      await supabase.from("campaigns").insert(newCamp);
+      setCampaigns(p=>[newCamp,...p]);
+      await dbInsert("campaigns", newCamp);
       toast("Campaña creada","ok");
     } else {
-      setCampaigns(p=>p.map(c=>c.id===editing.id?editing:c)); // optimistic
-      await supabase.from("campaigns").update(editing).eq("id",editing.id);
+      setCampaigns(p=>p.map(c=>c.id===editing.id?editing:c));
+      await dbUpdate("campaigns", editing.id, editing);
       toast("Campaña guardada","ok");
     }
     setEditing(null);
@@ -666,7 +735,7 @@ function EmailMarketing({isAdmin,workspaceId,leads}:{isAdmin:boolean;workspaceId
                   {c.status==="draft"&&<button className="btn btn-emerald" style={{fontSize:12,padding:"6px 12px"}} onClick={async ()=>{
   const updated={...c,status:"scheduled" as const};
   setCampaigns(p=>p.map(x=>x.id===c.id?updated:x));
-  await supabase.from("campaigns").update({status:"scheduled"}).eq("id",c.id);
+  await dbUpdate("campaigns", c.id, {status:"scheduled"});
   toast("Campaña programada","ok");
 }}>Programar</button>}
                   {(c.status==="draft"||c.status==="scheduled")&&<button className="btn btn-primary" style={{fontSize:12,padding:"6px 12px"}} onClick={()=>{setSending(c);setSelectedLeads([]);}}>▶ Enviar ahora</button>}
@@ -765,13 +834,10 @@ function Cadences({isAdmin,workspaceId}:{isAdmin:boolean;workspaceId:string}) {
 
   useEffect(()=>{
     if(dbLoaded) return;
-    supabase.from("cadences").select("*").eq("workspace_id",workspaceId).eq("status","active")
-      .then(({data})=>{
-        if(data && data.length>0) {
-          setCadences(data.map(c=>({...c,lead_count:c.lead_count||0,steps:c.steps||[]})) as Cadence[]);
-        }
-        setDbLoaded(true);
-      });
+    dbSelect("cadences", {workspace_id: workspaceId}).then(data=>{
+      if(data.length>0) setCadences(data.map((c:any)=>({...c,lead_count:c.lead_count||0,steps:c.steps||[]})) as Cadence[]);
+      setDbLoaded(true);
+    });
   },[workspaceId]);
 
   const CHANNELS = [{v:"linkedin",l:"LinkedIn",icon:"🔵"},{v:"email",l:"Email",icon:"✉"},{v:"whatsapp",l:"WhatsApp",icon:"💬"},{v:"call",l:"Llamada",icon:"📞"}];
@@ -781,7 +847,7 @@ function Cadences({isAdmin,workspaceId}:{isAdmin:boolean;workspaceId:string}) {
     const step:CadenceStep = {day:newStep.day||1,channel:newStep.channel||"linkedin",action:newStep.action,template:newStep.template||""};
     const updatedSteps = [...editing.steps,step].sort((a,b)=>a.day-b.day);
     setCadences(p=>p.map(c=>c.id===editing.id?{...c,steps:updatedSteps}:c));
-    await supabase.from("cadences").update({steps:updatedSteps}).eq("id",editing.id);
+    await dbUpdate("cadences", editing.id, {steps:updatedSteps});
     setEditing(p=>p?{...p,steps:[...p.steps,step].sort((a,b)=>a.day-b.day)}:p);
     setNewStep({day:(newStep.day||1)+2,channel:"email",action:"",template:""});
     toast("Paso agregado","ok");
@@ -798,7 +864,7 @@ function Cadences({isAdmin,workspaceId}:{isAdmin:boolean;workspaceId:string}) {
   const c:Cadence={id:uid(),workspace_id:workspaceId,name:"Nueva secuencia",steps:[],status:"active",lead_count:0};
   setCadences(p=>[c,...p]);
   setEditing(c);
-  await supabase.from("cadences").insert({...c,created_at:new Date().toISOString()});
+  await dbInsert("cadences", {...c, created_at:new Date().toISOString()});
 }}>+ Nueva cadencia</button>}
       </div>
 
@@ -862,7 +928,7 @@ function Cadences({isAdmin,workspaceId}:{isAdmin:boolean;workspaceId:string}) {
       <Modal open={!!editing} onClose={()=>setEditing(null)} title={editing?.name||""} width={660}>
         {editing&&(<>
           <Field label="Nombre de la secuencia">
-            <input className="inp" value={editing.name} onChange={async e=>{const n={...editing,name:e.target.value};setEditing(n);setCadences(p=>p.map(c=>c.id===editing.id?n:c));await supabase.from("cadences").update({name:e.target.value}).eq("id",editing.id);}} />
+            <input className="inp" value={editing.name} onChange={async e=>{const n={...editing,name:e.target.value};setEditing(n);setCadences(p=>p.map(c=>c.id===editing.id?n:c));await dbUpdate("cadences", editing.id, {name:e.target.value});}} />
           </Field>
           <p style={{fontSize:11,letterSpacing:".06em",textTransform:"uppercase",color:"var(--txt2)",fontWeight:500,marginBottom:12}}>Pasos ({editing.steps.length})</p>
           {editing.steps.map((step,i)=>(
@@ -872,7 +938,7 @@ function Cadences({isAdmin,workspaceId}:{isAdmin:boolean;workspaceId:string}) {
                 <p style={{fontSize:12,fontWeight:500}}>Día {step.day} — {step.action}</p>
                 <p style={{fontSize:11,color:"var(--txt2)",marginTop:2}}>{step.template.slice(0,60)}{step.template.length>60?"...":""}</p>
               </div>
-              <button className="btn btn-danger" style={{fontSize:11,padding:"4px 10px"}} onClick={async ()=>{const steps=editing.steps.filter((_,j)=>j!==i);const n={...editing,steps};setEditing(n);setCadences(p=>p.map(c=>c.id===editing.id?n:c));await supabase.from("cadences").update({steps}).eq("id",editing.id);}}>×</button>
+              <button className="btn btn-danger" style={{fontSize:11,padding:"4px 10px"}} onClick={async ()=>{const steps=editing.steps.filter((_,j)=>j!==i);const n={...editing,steps};setEditing(n);setCadences(p=>p.map(c=>c.id===editing.id?n:c));await dbUpdate("cadences", editing.id, {steps});}}>×</button>
             </div>
           ))}
           <div className="glass" style={{padding:"16px",marginTop:12}}>
@@ -914,9 +980,9 @@ function Knowledge({isAdmin,workspaceId}:{isAdmin:boolean;workspaceId:string}) {
   const toast = useToast();
 
   useEffect(()=>{
-    supabase.from("knowledge_base").select("*").eq("workspace_id",workspaceId)
-      .order("created_at",{ascending:false})
-      .then(({data})=>{ if(data && data.length>0) setItems(data as KnowledgeItem[]); });
+    dbSelect("knowledge_base", {workspace_id: workspaceId}).then(data=>{
+      if(data.length>0) setItems(data as KnowledgeItem[]);
+    });
   },[workspaceId]);
 
   const filtered = items.filter(i=>i.category===activeCategory&&(search===""||i.title.toLowerCase().includes(search.toLowerCase())||i.content.toLowerCase().includes(search.toLowerCase())));
@@ -926,10 +992,10 @@ function Knowledge({isAdmin,workspaceId}:{isAdmin:boolean;workspaceId:string}) {
     if (isNew) {
       const newItem = {...editing, id:uid(), workspace_id:workspaceId, created_at:new Date().toISOString()};
       setItems(p=>[newItem,...p]);
-      await supabase.from("knowledge_base").insert(newItem);
+      await dbInsert("knowledge_base", newItem);
     } else {
       setItems(p=>p.map(x=>x.id===editing.id?editing:x));
-      await supabase.from("knowledge_base").update(editing).eq("id",editing.id);
+      await dbUpdate("knowledge_base", editing.id, editing);
     }
     toast(isNew?"Ítem creado":"Guardado","ok");
     setEditing(null);
@@ -3329,7 +3395,7 @@ function LeadDetail({lead,onClose,onUpdate,activities,onAddActivity,cadences}:{
       next_step_at: new Date().toISOString(),
       enrolled_at: new Date().toISOString(),
     };
-    const {error} = await supabase.from("cadence_enrollments").upsert(enrollment, {onConflict:"cadence_id,lead_id"});
+    const {error:_enrollErr} = await dbInsert("cadence_enrollments", enrollment); const error = _enrollErr?{message:_enrollErr}:null;
     if(error) {
       toast(`Error: ${error.message}`,"err");
     } else {
@@ -3895,15 +3961,11 @@ function AppLayout({appUser,onLogout}:{appUser:AppUser;onLogout:()=>void}) {
       return;
     }
     setLeadsLoading(true);
-    setLeads([]); // limpiar antes de cargar los nuevos
-    supabase.from("leads")
-      .select("*")
-      .eq("workspace_id", workspaceId)
-      .order("created_at",{ascending:false})
-      .then(({data,error})=>{
-        if(!error && data) setLeads(data as Lead[]);
-        setLeadsLoading(false);
-      });
+    setLeads([]);
+    dbSelect("leads", {workspace_id: workspaceId}).then(data=>{
+      if(data.length > 0) setLeads(data as Lead[]);
+      setLeadsLoading(false);
+    });
   },[workspaceId,appUser?.workspace.id]);
 
   const [cadencesList] = useState<{id:string;name:string;steps:any[];status:string}[]>([
@@ -3922,8 +3984,9 @@ function AppLayout({appUser,onLogout}:{appUser:AppUser;onLogout:()=>void}) {
   const [teamMembers,setTeamMembers] = useState<Member[]>([]);
   useEffect(()=>{
     if(!appUser) return;
-    supabase.from("workspace_members").select("*").eq("workspace_id",appUser.workspace.id)
-      .then(({data})=>{ if(data) setTeamMembers(data as Member[]); });
+    dbSelect("workspace_members", {workspace_id: appUser.workspace.id}).then(data=>{
+      if(data.length>0) setTeamMembers(data as Member[]);
+    });
   },[appUser?.workspace.id]);
 
   async function handleInviteMember(email:string, _role:"admin"|"member") {
@@ -3945,14 +4008,10 @@ function AppLayout({appUser,onLogout}:{appUser:AppUser;onLogout:()=>void}) {
   // ── Cargar actividades al seleccionar un lead ──────────────
   useEffect(()=>{
     if(!selLead || activitiesLoaded===selLead.id) return;
-    supabase.from("activities")
-      .select("*")
-      .eq("lead_id",selLead.id)
-      .order("created_at",{ascending:false})
-      .then(({data})=>{
-        if(data) setActivities(prev=>[...prev.filter(a=>a.lead_id!==selLead.id),...(data as Activity[])]);
-        setActivitiesLoaded(selLead.id);
-      });
+    dbSelect("activities", {lead_id: selLead.id}).then(data=>{
+      setActivities(prev=>[...prev.filter(a=>a.lead_id!==selLead.id),...(data as Activity[])]);
+      setActivitiesLoaded(selLead.id);
+    });
   },[selLead?.id]);
 
   const [addOpen,setAddOpen] = useState(false);
@@ -3962,78 +4021,30 @@ function AppLayout({appUser,onLogout}:{appUser:AppUser;onLogout:()=>void}) {
   });
 
   async function addLead(l:Lead) {
-    const newLead = {
+    const newLead:Lead = {
       ...l,
       workspace_id: appUser.workspace.id,
       id: l.id || crypto.randomUUID(),
       created_at: l.created_at || new Date().toISOString(),
     };
-    setLeads(p=>[newLead,...p]); // optimistic update inmediato
-
-    // Usar fetch directo a la REST API de Supabase — más confiable que el cliente JS
-    try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token || SUPA_KEY;
-      const res = await fetch(`${SUPA_URL}/rest/v1/leads`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": SUPA_KEY,
-          "Authorization": `Bearer ${token}`,
-          "Prefer": "return=representation"
-        },
-        body: JSON.stringify(newLead)
-      });
-      if (!res.ok) {
-        const err = await res.text();
-        console.error("addLead REST error:", res.status, err);
-      } else {
-        const data = await res.json();
-        if (data?.[0]) setLeads(p=>p.map(x=>x.id===newLead.id ? data[0] as Lead : x));
-      }
-    } catch(e) {
-      console.error("addLead fetch error:", e);
-    }
+    setLeads(p=>[newLead,...p]);
+    const {ok,data} = await dbInsert("leads", newLead);
+    if(ok && data) setLeads(p=>p.map(x=>x.id===newLead.id ? data as Lead : x));
   }
   async function updateLead(l:Lead) {
-    setLeads(p=>p.map(x=>x.id===l.id?l:x)); // optimistic
-    try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token || SUPA_KEY;
-      const {updated_at:_, ...rest} = l as any;
-      await fetch(`${SUPA_URL}/rest/v1/leads?id=eq.${l.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": SUPA_KEY,
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({...rest, updated_at: new Date().toISOString()})
-      });
-    } catch(e) { console.error("updateLead error:", e); }
+    setLeads(p=>p.map(x=>x.id===l.id?l:x));
+    await dbUpdate("leads", l.id, {...l, updated_at: new Date().toISOString()});
   }
   async function addActivity(a:Activity) {
-    setActivities(p=>[a,...p]); // optimistic
-    try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token || SUPA_KEY;
-      await fetch(`${SUPA_URL}/rest/v1/activities`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": SUPA_KEY,
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify(a)
-      });
-    } catch(e) { console.error("addActivity error:", e); }
+    setActivities(p=>[a,...p]);
+    await dbInsert("activities", a);
   }
   function getLeadActivities(leadId:string){return activities.filter(a=>a.lead_id===leadId);}
   async function saveBizProfile(p:BusinessProfile){
     localStorage.setItem("closer_biz_profile",JSON.stringify(p));
     setBizProfile(p);
     // También en Supabase para sync multi-dispositivo
-    await supabase.from("workspaces").update({settings:p}).eq("id",appUser.workspace.id);
+    await dbUpdate("workspaces", appUser.workspace.id, {settings:p});
     setShowSetup(false);
   }
   function markSent(leadId:string,channel:string){
